@@ -37,7 +37,7 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
   activeReceiptSession,
   onClearReceiptSession,
   onSaveSettings,
-  lang = 'en'
+  lang = 'en'  // <-- اللغة الافتراضية دائماً إنجليزية
 }) => {
   const [reportType, setReportType] = useState<'checkout_receipt' | 'fleet_summary' | 'maintenance_audit' | 'expiries_audit' | 'fuel_summary' | 'ai_cost_summary'>(
     activeReceiptSession ? 'checkout_receipt' : 'fleet_summary'
@@ -58,11 +58,9 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
   const [showPrintDate, setShowPrintDate] = useState<boolean>(true);
   const [showHeaderNote, setShowHeaderNote] = useState<boolean>(true);
 
-  // Header Customization UI Toggles
   const [showCustomizePanel, setShowCustomizePanel] = useState<boolean>(false);
   const [isEditingCompanyInfo, setIsEditingCompanyInfo] = useState<boolean>(false);
 
-  // Editable copy of Company Settings for live header tuning
   const [localSettings, setLocalSettings] = useState<CompanySettings>({ ...settings });
   const [settingsSavedSuccess, setSettingsSavedSuccess] = useState<boolean>(false);
 
@@ -85,7 +83,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
   const [selectedDriverId, setSelectedDriverId] = useState<string>('all');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('all');
 
-  // Preview Modal & Focus Mode States
   const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
   const [focusMode, setFocusMode] = useState<boolean>(false);
 
@@ -96,7 +93,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [copiedSummary, setCopiedSummary] = useState<boolean>(false);
 
-  // Compute 3-Month Metrics for UI
   const ninetyDaysAgoStr = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 90);
@@ -133,7 +129,7 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
           maintenance,
           fuel,
           drivers,
-          lang: 'en'
+          lang: 'en'  // <-- إجبار التقرير على الإنجليزية
         })
       });
       const data = await res.json();
@@ -170,7 +166,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
 
   const hasActiveFilters = startDate !== '' || endDate !== '' || selectedDriverId !== 'all' || selectedVehicleId !== 'all';
 
-  // Filter Data Dynamically
   const filteredCheckouts = useMemo(() => {
     return checkouts.filter(c => {
       const dateVal = c.checkoutTime.slice(0, 10);
@@ -218,7 +213,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
     });
   }, [vehicles, selectedVehicleId, selectedDriverId]);
 
-  // Comparative Maintenance Data Preparation
   const maintenanceComparisonData = useMemo(() => {
     return filteredVehicles.map(v => {
       const vMaint = filteredMaintenance.filter(m => m.vehicleId === v.id);
@@ -263,7 +257,7 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
     else exportVehiclesToCSV(filteredVehicles, drivers);
   };
 
-  // Reusable Customizable Header Renderer
+  // Reusable Customizable Header Renderer (جميع النصوص بالإنجليزية)
   const renderCustomHeader = () => {
     const company = localSettings.companyName || settings.companyName;
     const tagline = localSettings.tagline || settings.tagline;
@@ -386,7 +380,7 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
     );
   };
 
-  // Reusable Printable Report Renderer (Strictly in English)
+  // Reusable Printable Report Renderer (جميع النصوص بالإنجليزية)
   const renderReportContent = () => {
     const activeHeaderNote = customHeaderNote || localSettings.printHeaderNote || settings.printHeaderNote;
 
@@ -407,461 +401,455 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
           </div>
         )}
 
-      {/* 1. CHECKOUT RECEIPT REPORT */}
-      {reportType === 'checkout_receipt' && selectedSession && (
-        <div className="space-y-6">
-          <div className="text-center border-b pb-2 border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">VEHICLE HANDOVER & CHECKOUT RECEIPT</h2>
-            <p className="text-xs text-slate-500 font-mono">Receipt Reference No: {selectedSession.id}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 border p-4 rounded-xl bg-slate-50/50 text-xs">
-            <div>
-              <p className="font-bold text-sm text-slate-900 mb-2 border-b pb-1">Vehicle Specifications:</p>
-              {(() => {
-                const v = vehicles.find(veh => veh.id === selectedSession.vehicleId);
-                return (
-                  <div className="space-y-1">
-                    <p><strong>Vehicle:</strong> {v?.make} {v?.model} ({v?.year})</p>
-                    <p><strong>Plate Number:</strong> <span className="font-bold font-mono">{v?.plateNumber}</span></p>
-                    <p><strong>Fuel Type:</strong> {v?.fuelType}</p>
-                    <p><strong>Insurance Company:</strong> {v?.insuranceCompany}</p>
-                  </div>
-                );
-              })()}
+        {/* 1. CHECKOUT RECEIPT REPORT */}
+        {reportType === 'checkout_receipt' && selectedSession && (
+          <div className="space-y-6">
+            <div className="text-center border-b pb-2 border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">VEHICLE HANDOVER & CHECKOUT RECEIPT</h2>
+              <p className="text-xs text-slate-500 font-mono">Receipt Reference No: {selectedSession.id}</p>
             </div>
 
-            <div>
-              <p className="font-bold text-sm text-slate-900 mb-2 border-b pb-1">Driver / Custodian Details:</p>
-              {(() => {
-                const d = drivers.find(drv => drv.id === selectedSession.driverId);
-                return (
-                  <div className="space-y-1">
-                    <p><strong>Name:</strong> {d?.name}</p>
-                    <p><strong>Phone:</strong> <span className="font-mono">{d?.phone}</span></p>
-                    <p><strong>Department:</strong> {d?.department}</p>
-                    <p><strong>License No:</strong> {d?.licenseNumber} ({d?.licenseCategory})</p>
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
+            <div className="grid grid-cols-2 gap-4 border p-4 rounded-xl bg-slate-50/50 text-xs">
+              <div>
+                <p className="font-bold text-sm text-slate-900 mb-2 border-b pb-1">Vehicle Specifications:</p>
+                {(() => {
+                  const v = vehicles.find(veh => veh.id === selectedSession.vehicleId);
+                  return (
+                    <div className="space-y-1">
+                      <p><strong>Vehicle:</strong> {v?.make} {v?.model} ({v?.year})</p>
+                      <p><strong>Plate Number:</strong> <span className="font-bold font-mono">{v?.plateNumber}</span></p>
+                      <p><strong>Fuel Type:</strong> {v?.fuelType}</p>
+                      <p><strong>Insurance Company:</strong> {v?.insuranceCompany}</p>
+                    </div>
+                  );
+                })()}
+              </div>
 
-          {/* Session Details */}
-          <div className="border p-4 rounded-xl text-xs space-y-3">
-            <p className="font-bold border-b pb-1">Handover Purpose & Parameters:</p>
-            <div className="grid grid-cols-3 gap-2 font-mono">
               <div>
-                <span className="text-slate-500 block">Purpose:</span>
-                <span className="font-bold">{selectedSession.purposeCustom || selectedSession.purpose}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Checkout Time:</span>
-                <span>{new Date(selectedSession.checkoutTime).toLocaleString('en-US')}</span>
-              </div>
-              <div>
-                <span className="text-slate-500 block">Checkout Odometer:</span>
-                <span className="font-bold text-blue-600">{selectedSession.checkoutOdometer.toLocaleString()} km</span>
+                <p className="font-bold text-sm text-slate-900 mb-2 border-b pb-1">Driver / Custodian Details:</p>
+                {(() => {
+                  const d = drivers.find(drv => drv.id === selectedSession.driverId);
+                  return (
+                    <div className="space-y-1">
+                      <p><strong>Name:</strong> {d?.name}</p>
+                      <p><strong>Phone:</strong> <span className="font-mono">{d?.phone}</span></p>
+                      <p><strong>Department:</strong> {d?.department}</p>
+                      <p><strong>License No:</strong> {d?.licenseNumber} ({d?.licenseCategory})</p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
-            {selectedSession.checkoutChecklist && (
-              <div className="pt-2 border-t text-[11px] space-y-1 bg-slate-50 p-2.5 rounded-lg border-slate-200">
-                <p className="font-bold text-slate-800 flex items-center justify-between">
-                  <span>Vehicle Condition Checklist at Handover:</span>
-                  <span className="text-emerald-700 font-mono font-bold">
-                    ({Object.values(selectedSession.checkoutChecklist).filter(Boolean).length} / 6 Verified)
-                  </span>
-                </p>
-                <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-700">
-                  <p>• Body Condition: {selectedSession.checkoutChecklist.noScratches ? '✓ OK / Clean' : '✕ Scratches/Dents'}</p>
-                  <p>• Spare Tire & Jack: {selectedSession.checkoutChecklist.spareTire ? '✓ Present' : '✕ Missing'}</p>
-                  <p>• Fire Extinguisher: {selectedSession.checkoutChecklist.fireExtinguisher ? '✓ Present' : '✕ Missing'}</p>
-                  <p>• Warning Triangle: {selectedSession.checkoutChecklist.warningTriangle ? '✓ Present' : '✕ Missing'}</p>
-                  <p>• Registration Card: {selectedSession.checkoutChecklist.registrationDoc ? '✓ Present' : '✕ Missing'}</p>
-                  <p>• Cleanliness: {selectedSession.checkoutChecklist.cleanliness ? '✓ Clean' : '✕ Needs Wash'}</p>
+            <div className="border p-4 rounded-xl text-xs space-y-3">
+              <p className="font-bold border-b pb-1">Handover Purpose & Parameters:</p>
+              <div className="grid grid-cols-3 gap-2 font-mono">
+                <div>
+                  <span className="text-slate-500 block">Purpose:</span>
+                  <span className="font-bold">{selectedSession.purposeCustom || selectedSession.purpose}</span>
                 </div>
+                <div>
+                  <span className="text-slate-500 block">Checkout Time:</span>
+                  <span>{new Date(selectedSession.checkoutTime).toLocaleString('en-US')}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block">Checkout Odometer:</span>
+                  <span className="font-bold text-blue-600">{selectedSession.checkoutOdometer.toLocaleString()} km</span>
+                </div>
+              </div>
+
+              {selectedSession.checkoutChecklist && (
+                <div className="pt-2 border-t text-[11px] space-y-1 bg-slate-50 p-2.5 rounded-lg border-slate-200">
+                  <p className="font-bold text-slate-800 flex items-center justify-between">
+                    <span>Vehicle Condition Checklist at Handover:</span>
+                    <span className="text-emerald-700 font-mono font-bold">
+                      ({Object.values(selectedSession.checkoutChecklist).filter(Boolean).length} / 6 Verified)
+                    </span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-1 text-[10px] text-slate-700">
+                    <p>• Body Condition: {selectedSession.checkoutChecklist.noScratches ? '✓ OK / Clean' : '✕ Scratches/Dents'}</p>
+                    <p>• Spare Tire & Jack: {selectedSession.checkoutChecklist.spareTire ? '✓ Present' : '✕ Missing'}</p>
+                    <p>• Fire Extinguisher: {selectedSession.checkoutChecklist.fireExtinguisher ? '✓ Present' : '✕ Missing'}</p>
+                    <p>• Warning Triangle: {selectedSession.checkoutChecklist.warningTriangle ? '✓ Present' : '✕ Missing'}</p>
+                    <p>• Registration Card: {selectedSession.checkoutChecklist.registrationDoc ? '✓ Present' : '✕ Missing'}</p>
+                    <p>• Cleanliness: {selectedSession.checkoutChecklist.cleanliness ? '✓ Clean' : '✕ Needs Wash'}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-6 pt-6 border-t border-slate-300 text-xs">
+              <div className="text-center space-y-2 border p-3 rounded-xl">
+                <p className="font-bold text-slate-900">Driver / Custodian Signature:</p>
+                {selectedSession.checkoutSignature ? (
+                  <img src={selectedSession.checkoutSignature} alt="Checkout Signature" className="max-h-16 mx-auto object-contain" />
+                ) : (
+                  <div className="h-12 flex items-center justify-center text-slate-400 italic">Not Signed</div>
+                )}
+                <p className="text-[10px] text-slate-500">I acknowledge receiving the vehicle in sound condition.</p>
+              </div>
+
+              <div className="text-center space-y-2 border p-3 rounded-xl">
+                <p className="font-bold text-slate-900">Fleet Operations Manager Authorization:</p>
+                {selectedSession.returnSignature ? (
+                  <img src={selectedSession.returnSignature} alt="Return Signature" className="max-h-16 mx-auto object-contain" />
+                ) : (
+                  <div className="h-12 flex items-center justify-center text-slate-400 italic">Approved & Handed Over</div>
+                )}
+                <p className="text-[10px] text-slate-500">Official Fleet Records Validation</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 2. FLEET SUMMARY REPORT */}
+        {reportType === 'fleet_summary' && (
+          <div className="space-y-4">
+            <div className="text-center border-b pb-2 border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">FLEET VEHICLES SUMMARY REPORT</h2>
+              <p className="text-xs text-slate-500 font-mono">Total Vehicles Listed: {filteredVehicles.length}</p>
+            </div>
+
+            <table className="w-full text-left text-xs border border-slate-300">
+              <thead className="bg-slate-100 border-b">
+                <tr>
+                  <th className="p-2 border-r">#</th>
+                  <th className="p-2 border-r">Make & Model</th>
+                  <th className="p-2 border-r">Plate Number</th>
+                  <th className="p-2 border-r">Assigned Driver</th>
+                  <th className="p-2 border-r">Odometer</th>
+                  <th className="p-2 border-r">Registration Expiry</th>
+                  <th className="p-2 border-r">Insurance Expiry</th>
+                  <th className="p-2">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredVehicles.map((v, i) => {
+                  const assignedDriver = drivers.find(d => d.id === v.assignedDriverId);
+                  return (
+                    <tr key={v.id}>
+                      <td className="p-2 border-r font-bold">{i + 1}</td>
+                      <td className="p-2 border-r font-bold">{v.make} {v.model}</td>
+                      <td className="p-2 border-r font-mono font-bold">{v.plateNumber}</td>
+                      <td className="p-2 border-r">{assignedDriver ? assignedDriver.name : 'Unassigned'}</td>
+                      <td className="p-2 border-r font-mono">{v.mileage.toLocaleString()} km</td>
+                      <td className="p-2 border-r font-mono">{v.licenseExpiryDate}</td>
+                      <td className="p-2 border-r font-mono">{v.insuranceExpiryDate}</td>
+                      <td className="p-2 font-bold capitalize">{v.status.replace('_', ' ')}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 3. MAINTENANCE AUDIT REPORT */}
+        {reportType === 'maintenance_audit' && (
+          <div className="space-y-6">
+            <div className="text-center border-b pb-3 border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">MAINTENANCE EXPENSE & REPAIR AUDIT REPORT</h2>
+              <p className="text-xs text-slate-500">Invoices Analyzed: {filteredMaintenance.length} | Total Cost: {formatCurrency(totalMaintenanceAll, settings.currency, 'en')}</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-600 block">Total Maintenance Spend</span>
+                  <span className="text-base font-black text-slate-900 font-mono">{formatCurrency(totalMaintenanceAll, settings.currency, 'en')}</span>
+                </div>
+              </div>
+
+              <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-emerald-800 block">Periodic Maintenance</span>
+                  <span className="text-base font-black text-emerald-700 font-mono">
+                    {formatCurrency(totalPeriodicAll, settings.currency, 'en')}
+                    <span className="text-[10px] font-normal ml-1 text-emerald-600">
+                      ({totalMaintenanceAll > 0 ? Math.round((totalPeriodicAll / totalMaintenanceAll) * 100) : 0}%)
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-rose-800 block">Emergency Breakdowns</span>
+                  <span className="text-base font-black text-rose-700 font-mono">
+                    {formatCurrency(totalBreakdownAll, settings.currency, 'en')}
+                    <span className="text-[10px] font-normal ml-1 text-rose-600">
+                      ({totalMaintenanceAll > 0 ? Math.round((totalBreakdownAll / totalMaintenanceAll) * 100) : 0}%)
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <table className="w-full text-left text-xs border border-slate-300">
+              <thead className="bg-slate-100 border-b">
+                <tr>
+                  <th className="p-2 border-r">Date</th>
+                  <th className="p-2 border-r">Vehicle & Plate</th>
+                  <th className="p-2 border-r">Maintenance Type</th>
+                  <th className="p-2 border-r">Description</th>
+                  <th className="p-2 border-r">Parts Replaced</th>
+                  <th className="p-2 font-bold">Cost ({getCurrencySymbol(settings.currency, 'en')})</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredMaintenance.map((m) => {
+                  const v = vehicles.find(veh => veh.id === m.vehicleId);
+                  const isPeriodic = m.type === 'periodic';
+                  return (
+                    <tr key={m.id}>
+                      <td className="p-2 border-r font-mono">{m.date}</td>
+                      <td className="p-2 border-r font-bold">{v?.make} {v?.model} ({v?.plateNumber})</td>
+                      <td className="p-2 border-r">
+                        {isPeriodic ? (
+                          <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">Periodic Service</span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold text-[10px]">Emergency Repair</span>
+                        )}
+                      </td>
+                      <td className="p-2 border-r">{m.description}</td>
+                      <td className="p-2 border-r">
+                        {m.parts?.map(p => `${p.partName} (${p.quantity})`).join(', ') || 'None'}
+                      </td>
+                      <td className="p-2 font-bold font-mono text-slate-900">{formatCurrency(m.totalCost, settings.currency, 'en')}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 4. FUEL SUMMARY REPORT */}
+        {reportType === 'fuel_summary' && (
+          <div className="space-y-4">
+            <div className="text-center border-b pb-2 border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">FUEL EXPENSES & REFUELING AUDIT REPORT</h2>
+              <p className="text-xs text-slate-500 font-mono">Total Refueling Transactions: {filteredFuel.length} | Total Spend: {formatCurrency(filteredFuel.reduce((sum, f) => sum + f.totalCost, 0), settings.currency, 'en')}</p>
+            </div>
+
+            <table className="w-full text-left text-xs border border-slate-300">
+              <thead className="bg-slate-100 border-b">
+                <tr>
+                  <th className="p-2 border-r">Date</th>
+                  <th className="p-2 border-r">Vehicle & Plate</th>
+                  <th className="p-2 border-r">Driver</th>
+                  <th className="p-2 border-r">Fuel Station</th>
+                  <th className="p-2 border-r">Liters</th>
+                  <th className="p-2 border-r">Odometer</th>
+                  <th className="p-2 font-bold">Total Cost ({getCurrencySymbol(settings.currency, 'en')})</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filteredFuel.map((f) => {
+                  const v = vehicles.find(veh => veh.id === f.vehicleId);
+                  const d = drivers.find(drv => drv.id === f.driverId);
+                  return (
+                    <tr key={f.id}>
+                      <td className="p-2 border-r font-mono">{f.date}</td>
+                      <td className="p-2 border-r font-bold">{v?.make} {v?.model} ({v?.plateNumber})</td>
+                      <td className="p-2 border-r">{d?.name || 'General Driver'}</td>
+                      <td className="p-2 border-r">{f.stationName || 'Fuel Station'}</td>
+                      <td className="p-2 border-r font-mono">{f.liters} L</td>
+                      <td className="p-2 border-r font-mono">{f.odometerReading.toLocaleString()} km</td>
+                      <td className="p-2 font-bold font-mono text-amber-600">{formatCurrency(f.totalCost, settings.currency, 'en')}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 5. EXPIRIES AUDIT REPORT */}
+        {reportType === 'expiries_audit' && (
+          <div className="space-y-4">
+            <div className="text-center border-b pb-2 border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">FLEET EXPIRIES & COMPLIANCE REPORT</h2>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="border p-3 rounded">
+                <p className="font-bold border-b pb-1 mb-2">Vehicle Registration & Insurance Expiries:</p>
+                {filteredVehicles.map(v => (
+                  <div key={v.id} className="py-1 border-b border-dashed space-y-0.5">
+                    <div className="flex justify-between font-bold">
+                      <span>{v.make} {v.model} ({v.plateNumber})</span>
+                      <span className="font-mono text-rose-600">Reg: {v.licenseExpiryDate}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 flex justify-between font-mono">
+                      <span>Ins ({v.insuranceCompany})</span>
+                      <span>Ins Exp: {v.insuranceExpiryDate}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border p-3 rounded">
+                <p className="font-bold border-b pb-1 mb-2">Driver License Expiries:</p>
+                {drivers.map(d => (
+                  <div key={d.id} className="py-1.5 border-b border-dashed flex justify-between items-center font-mono">
+                    <span>{d.name} ({d.licenseCategory})</span>
+                    <span className="font-bold text-blue-600">Exp: {d.licenseExpiryDate}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 6. AI 3-MONTH EXPENSE & COST-SAVING REPORT */}
+        {reportType === 'ai_cost_summary' && (
+          <div className="space-y-5">
+            <div className="text-center border-b pb-3 border-slate-200">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded-full text-xs font-bold mb-1">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                AI-Powered Cost-Optimization Report
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">
+                3-MONTH VEHICLE EXPENSE & COST-SAVING OPPORTUNITIES
+              </h2>
+              <p className="text-xs text-slate-500 font-mono mt-0.5">
+                Analysis Window: Last 90 Days (Since {ninetyDaysAgoStr})
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs font-mono">
+              <div className="border-r border-slate-200 pr-2">
+                <span className="text-slate-500 block text-[10px]">3M Maintenance Spend</span>
+                <span className="font-extrabold text-blue-700 text-sm">{formatCurrency(recent3MaintCost, settings.currency, 'en')}</span>
+                <span className="text-[10px] text-slate-400 block">{recent3Maint.length} service logs</span>
+              </div>
+              <div className="border-r border-slate-200 pr-2">
+                <span className="text-slate-500 block text-[10px]">3M Fuel Spend</span>
+                <span className="font-extrabold text-amber-600 text-sm">{formatCurrency(recent3FuelCost, settings.currency, 'en')}</span>
+                <span className="text-[10px] text-slate-400 block">{recent3Fuel.length} fuel logs</span>
+              </div>
+              <div className="border-r border-slate-200 pr-2">
+                <span className="text-slate-500 block text-[10px]">Total 3M Expenses</span>
+                <span className="font-black text-emerald-700 text-sm">{formatCurrency(total3mExpense, settings.currency, 'en')}</span>
+                <span className="text-[10px] text-slate-400 block">Combined Total</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[10px]">Fleet Analyzed</span>
+                <span className="font-extrabold text-slate-800 text-sm">{vehicles.length} Vehicles</span>
+                <span className="text-[10px] text-slate-400 block">{drivers.length} Drivers</span>
+              </div>
+            </div>
+
+            {isAnalyzing ? (
+              <div className="p-8 text-center space-y-3 bg-blue-50/50 rounded-xl border border-blue-200">
+                <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
+                <p className="text-xs font-bold text-blue-900">
+                  Analyzing last 3 months of vehicle maintenance, fuel logs, and spare parts...
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  Gemini 3.6 Flash is calculating cost driver patterns and identifying savings opportunities.
+                </p>
+              </div>
+            ) : analysisError ? (
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center justify-between">
+                <p><strong>Analysis Error:</strong> {analysisError}</p>
+                <button
+                  onClick={handleRunAiExpenseSummary}
+                  className="px-3 py-1.5 bg-rose-600 text-white rounded font-bold hover:bg-rose-700 transition"
+                >
+                  Retry Analysis
+                </button>
+              </div>
+            ) : aiSummary ? (
+              <div className="space-y-4">
+                <div className="flex justify-end gap-2 no-print">
+                  <button
+                    onClick={handleCopySummary}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs transition flex items-center gap-1.5"
+                  >
+                    {copiedSummary ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copiedSummary ? 'Copied!' : 'Copy Summary'}
+                  </button>
+                  <button
+                    onClick={handleRunAiExpenseSummary}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    Re-Analyze
+                  </button>
+                </div>
+
+                <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-sm space-y-3 text-xs leading-relaxed text-slate-800 dir-ltr text-left">
+                  {aiSummary.split('\n').map((line, idx) => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return <div key={idx} className="h-1" />;
+                    if (trimmed.startsWith('#') || trimmed.startsWith('1.') || trimmed.startsWith('2.') || trimmed.startsWith('3.')) {
+                      return (
+                        <h3 key={idx} className="font-extrabold text-sm text-slate-900 border-b pb-1 mt-3 text-blue-900 flex items-center gap-1.5">
+                          {trimmed.replace(/^[#\d\.\s]+/, '')}
+                        </h3>
+                      );
+                    }
+                    if (trimmed.startsWith('-') || trimmed.startsWith('*') || trimmed.startsWith('•')) {
+                      return (
+                        <div key={idx} className="flex items-start gap-2 pl-2 py-0.5">
+                          <span className="text-emerald-600 font-bold text-base leading-none">•</span>
+                          <p className="flex-1">
+                            {trimmed.replace(/^[-*•]\s*/, '').split(/(\*\*.*?\*\*)/).map((part, pIdx) => {
+                              if (part.startsWith('**') && part.endsWith('**')) {
+                                return <strong key={pIdx} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+                              }
+                              return part;
+                            })}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return (
+                      <p key={idx} className="text-slate-700">
+                        {trimmed.split(/(\*\*.*?\*\*)/).map((part, pIdx) => {
+                          if (part.startsWith('**') && part.endsWith('**')) {
+                            return <strong key={pIdx} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
+                          }
+                          return part;
+                        })}
+                      </p>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center space-y-4 bg-gradient-to-br from-blue-50 to-emerald-50 rounded-xl border border-blue-200">
+                <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto shadow-md">
+                  <BrainCircuit className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm">Generate AI Cost-Saving Analysis Report</h3>
+                  <p className="text-xs text-slate-600 max-w-md mx-auto mt-1">
+                    Analyze the last 90 days of vehicle repair bills, fuel refill logs, and driver breakdown frequencies to uncover immediate savings opportunities.
+                  </p>
+                </div>
+                <button
+                  onClick={handleRunAiExpenseSummary}
+                  disabled={isAnalyzing}
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs shadow-md transition inline-flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generate 3-Month AI Analysis
+                </button>
               </div>
             )}
           </div>
+        )}
 
-          {/* Signatures Block */}
-          <div className="grid grid-cols-2 gap-6 pt-6 border-t border-slate-300 text-xs">
-            <div className="text-center space-y-2 border p-3 rounded-xl">
-              <p className="font-bold text-slate-900">Driver / Custodian Signature:</p>
-              {selectedSession.checkoutSignature ? (
-                <img src={selectedSession.checkoutSignature} alt="Checkout Signature" className="max-h-16 mx-auto object-contain" />
-              ) : (
-                <div className="h-12 flex items-center justify-center text-slate-400 italic">Not Signed</div>
-              )}
-              <p className="text-[10px] text-slate-500">I acknowledge receiving the vehicle in sound condition.</p>
-            </div>
-
-            <div className="text-center space-y-2 border p-3 rounded-xl">
-              <p className="font-bold text-slate-900">Fleet Operations Manager Authorization:</p>
-              {selectedSession.returnSignature ? (
-                <img src={selectedSession.returnSignature} alt="Return Signature" className="max-h-16 mx-auto object-contain" />
-              ) : (
-                <div className="h-12 flex items-center justify-center text-slate-400 italic">Approved & Handed Over</div>
-              )}
-              <p className="text-[10px] text-slate-500">Official Fleet Records Validation</p>
-            </div>
-          </div>
+        {/* Footer Note */}
+        <div className="border-t border-slate-300 pt-4 text-center text-[10px] text-slate-500 font-mono">
+          <p>{settings.printFooterNote || `${settings.companyName} • Official Fleet Management Report`}</p>
         </div>
-      )}
-
-      {/* 2. FLEET SUMMARY REPORT */}
-      {reportType === 'fleet_summary' && (
-        <div className="space-y-4">
-          <div className="text-center border-b pb-2 border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">FLEET VEHICLES SUMMARY REPORT</h2>
-            <p className="text-xs text-slate-500 font-mono">Total Vehicles Listed: {filteredVehicles.length}</p>
-          </div>
-
-          <table className="w-full text-left text-xs border border-slate-300">
-            <thead className="bg-slate-100 border-b">
-              <tr>
-                <th className="p-2 border-r">#</th>
-                <th className="p-2 border-r">Make & Model</th>
-                <th className="p-2 border-r">Plate Number</th>
-                <th className="p-2 border-r">Assigned Driver</th>
-                <th className="p-2 border-r">Odometer</th>
-                <th className="p-2 border-r">Registration Expiry</th>
-                <th className="p-2 border-r">Insurance Expiry</th>
-                <th className="p-2">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredVehicles.map((v, i) => {
-                const assignedDriver = drivers.find(d => d.id === v.assignedDriverId);
-                return (
-                  <tr key={v.id}>
-                    <td className="p-2 border-r font-bold">{i + 1}</td>
-                    <td className="p-2 border-r font-bold">{v.make} {v.model}</td>
-                    <td className="p-2 border-r font-mono font-bold">{v.plateNumber}</td>
-                    <td className="p-2 border-r">{assignedDriver ? assignedDriver.name : 'Unassigned'}</td>
-                    <td className="p-2 border-r font-mono">{v.mileage.toLocaleString()} km</td>
-                    <td className="p-2 border-r font-mono">{v.licenseExpiryDate}</td>
-                    <td className="p-2 border-r font-mono">{v.insuranceExpiryDate}</td>
-                    <td className="p-2 font-bold capitalize">{v.status.replace('_', ' ')}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* 3. MAINTENANCE AUDIT REPORT */}
-      {reportType === 'maintenance_audit' && (
-        <div className="space-y-6">
-          <div className="text-center border-b pb-3 border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">MAINTENANCE EXPENSE & REPAIR AUDIT REPORT</h2>
-            <p className="text-xs text-slate-500">Invoices Analyzed: {filteredMaintenance.length} | Total Cost: {formatCurrency(totalMaintenanceAll, settings.currency, 'en')}</p>
-          </div>
-
-          {/* Summary Chips */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold text-slate-600 block">Total Maintenance Spend</span>
-                <span className="text-base font-black text-slate-900 font-mono">{formatCurrency(totalMaintenanceAll, settings.currency, 'en')}</span>
-              </div>
-            </div>
-
-            <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold text-emerald-800 block">Periodic Maintenance</span>
-                <span className="text-base font-black text-emerald-700 font-mono">
-                  {formatCurrency(totalPeriodicAll, settings.currency, 'en')}
-                  <span className="text-[10px] font-normal ml-1 text-emerald-600">
-                    ({totalMaintenanceAll > 0 ? Math.round((totalPeriodicAll / totalMaintenanceAll) * 100) : 0}%)
-                  </span>
-                </span>
-              </div>
-            </div>
-
-            <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-xl flex items-center justify-between">
-              <div>
-                <span className="text-[11px] font-bold text-rose-800 block">Emergency Breakdowns</span>
-                <span className="text-base font-black text-rose-700 font-mono">
-                  {formatCurrency(totalBreakdownAll, settings.currency, 'en')}
-                  <span className="text-[10px] font-normal ml-1 text-rose-600">
-                    ({totalMaintenanceAll > 0 ? Math.round((totalBreakdownAll / totalMaintenanceAll) * 100) : 0}%)
-                  </span>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Breakdown Table */}
-          <table className="w-full text-left text-xs border border-slate-300">
-            <thead className="bg-slate-100 border-b">
-              <tr>
-                <th className="p-2 border-r">Date</th>
-                <th className="p-2 border-r">Vehicle & Plate</th>
-                <th className="p-2 border-r">Maintenance Type</th>
-                <th className="p-2 border-r">Description</th>
-                <th className="p-2 border-r">Parts Replaced</th>
-                <th className="p-2 font-bold">Cost ({getCurrencySymbol(settings.currency, 'en')})</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredMaintenance.map((m) => {
-                const v = vehicles.find(veh => veh.id === m.vehicleId);
-                const isPeriodic = m.type === 'periodic';
-                return (
-                  <tr key={m.id}>
-                    <td className="p-2 border-r font-mono">{m.date}</td>
-                    <td className="p-2 border-r font-bold">{v?.make} {v?.model} ({v?.plateNumber})</td>
-                    <td className="p-2 border-r">
-                      {isPeriodic ? (
-                        <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">Periodic Service</span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-bold text-[10px]">Emergency Repair</span>
-                      )}
-                    </td>
-                    <td className="p-2 border-r">{m.description}</td>
-                    <td className="p-2 border-r">
-                      {m.parts?.map(p => `${p.partName} (${p.quantity})`).join(', ') || 'None'}
-                    </td>
-                    <td className="p-2 font-bold font-mono text-slate-900">{formatCurrency(m.totalCost, settings.currency, 'en')}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* 4. FUEL SUMMARY REPORT */}
-      {reportType === 'fuel_summary' && (
-        <div className="space-y-4">
-          <div className="text-center border-b pb-2 border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">FUEL EXPENSES & REFUELING AUDIT REPORT</h2>
-            <p className="text-xs text-slate-500 font-mono">Total Refueling Transactions: {filteredFuel.length} | Total Spend: {formatCurrency(filteredFuel.reduce((sum, f) => sum + f.totalCost, 0), settings.currency, 'en')}</p>
-          </div>
-
-          <table className="w-full text-left text-xs border border-slate-300">
-            <thead className="bg-slate-100 border-b">
-              <tr>
-                <th className="p-2 border-r">Date</th>
-                <th className="p-2 border-r">Vehicle & Plate</th>
-                <th className="p-2 border-r">Driver</th>
-                <th className="p-2 border-r">Fuel Station</th>
-                <th className="p-2 border-r">Liters</th>
-                <th className="p-2 border-r">Odometer</th>
-                <th className="p-2 font-bold">Total Cost ({getCurrencySymbol(settings.currency, 'en')})</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filteredFuel.map((f) => {
-                const v = vehicles.find(veh => veh.id === f.vehicleId);
-                const d = drivers.find(drv => drv.id === f.driverId);
-                return (
-                  <tr key={f.id}>
-                    <td className="p-2 border-r font-mono">{f.date}</td>
-                    <td className="p-2 border-r font-bold">{v?.make} {v?.model} ({v?.plateNumber})</td>
-                    <td className="p-2 border-r">{d?.name || 'General Driver'}</td>
-                    <td className="p-2 border-r">{f.stationName || 'Fuel Station'}</td>
-                    <td className="p-2 border-r font-mono">{f.liters} L</td>
-                    <td className="p-2 border-r font-mono">{f.odometerReading.toLocaleString()} km</td>
-                    <td className="p-2 font-bold font-mono text-amber-600">{formatCurrency(f.totalCost, settings.currency, 'en')}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* 5. EXPIRIES AUDIT REPORT */}
-      {reportType === 'expiries_audit' && (
-        <div className="space-y-4">
-          <div className="text-center border-b pb-2 border-slate-200">
-            <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">FLEET EXPIRIES & COMPLIANCE REPORT</h2>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 text-xs">
-            <div className="border p-3 rounded">
-              <p className="font-bold border-b pb-1 mb-2">Vehicle Registration & Insurance Expiries:</p>
-              {filteredVehicles.map(v => (
-                <div key={v.id} className="py-1 border-b border-dashed space-y-0.5">
-                  <div className="flex justify-between font-bold">
-                    <span>{v.make} {v.model} ({v.plateNumber})</span>
-                    <span className="font-mono text-rose-600">Reg: {v.licenseExpiryDate}</span>
-                  </div>
-                  <p className="text-[10px] text-slate-500 flex justify-between font-mono">
-                    <span>Ins ({v.insuranceCompany})</span>
-                    <span>Ins Exp: {v.insuranceExpiryDate}</span>
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="border p-3 rounded">
-              <p className="font-bold border-b pb-1 mb-2">Driver License Expiries:</p>
-              {drivers.map(d => (
-                <div key={d.id} className="py-1.5 border-b border-dashed flex justify-between items-center font-mono">
-                  <span>{d.name} ({d.licenseCategory})</span>
-                  <span className="font-bold text-blue-600">Exp: {d.licenseExpiryDate}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. AI 3-MONTH EXPENSE & COST-SAVING REPORT */}
-      {reportType === 'ai_cost_summary' && (
-        <div className="space-y-5">
-          <div className="text-center border-b pb-3 border-slate-200">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded-full text-xs font-bold mb-1">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              AI-Powered Cost-Optimization Report
-            </div>
-            <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">
-              3-MONTH VEHICLE EXPENSE & COST-SAVING OPPORTUNITIES
-            </h2>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">
-              Analysis Window: Last 90 Days (Since {ninetyDaysAgoStr})
-            </p>
-          </div>
-
-          {/* 3-Month KPI Financial Summary Box */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs font-mono">
-            <div className="border-r border-slate-200 pr-2">
-              <span className="text-slate-500 block text-[10px]">3M Maintenance Spend</span>
-              <span className="font-extrabold text-blue-700 text-sm">{formatCurrency(recent3MaintCost, settings.currency, 'en')}</span>
-              <span className="text-[10px] text-slate-400 block">{recent3Maint.length} service logs</span>
-            </div>
-            <div className="border-r border-slate-200 pr-2">
-              <span className="text-slate-500 block text-[10px]">3M Fuel Spend</span>
-              <span className="font-extrabold text-amber-600 text-sm">{formatCurrency(recent3FuelCost, settings.currency, 'en')}</span>
-              <span className="text-[10px] text-slate-400 block">{recent3Fuel.length} fuel logs</span>
-            </div>
-            <div className="border-r border-slate-200 pr-2">
-              <span className="text-slate-500 block text-[10px]">Total 3M Expenses</span>
-              <span className="font-black text-emerald-700 text-sm">{formatCurrency(total3mExpense, settings.currency, 'en')}</span>
-              <span className="text-[10px] text-slate-400 block">Combined Total</span>
-            </div>
-            <div>
-              <span className="text-slate-500 block text-[10px]">Fleet Analyzed</span>
-              <span className="font-extrabold text-slate-800 text-sm">{vehicles.length} Vehicles</span>
-              <span className="text-[10px] text-slate-400 block">{drivers.length} Drivers</span>
-            </div>
-          </div>
-
-          {/* AI Report Body or Loading / Prompt */}
-          {isAnalyzing ? (
-            <div className="p-8 text-center space-y-3 bg-blue-50/50 rounded-xl border border-blue-200">
-              <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto" />
-              <p className="text-xs font-bold text-blue-900">
-                Analyzing last 3 months of vehicle maintenance, fuel logs, and spare parts...
-              </p>
-              <p className="text-[11px] text-slate-500">
-                Gemini 3.6 Flash is calculating cost driver patterns and identifying savings opportunities.
-              </p>
-            </div>
-          ) : analysisError ? (
-            <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center justify-between">
-              <p><strong>Analysis Error:</strong> {analysisError}</p>
-              <button
-                onClick={handleRunAiExpenseSummary}
-                className="px-3 py-1.5 bg-rose-600 text-white rounded font-bold hover:bg-rose-700 transition"
-              >
-                Retry Analysis
-              </button>
-            </div>
-          ) : aiSummary ? (
-            <div className="space-y-4">
-              <div className="flex justify-end gap-2 no-print">
-                <button
-                  onClick={handleCopySummary}
-                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs transition flex items-center gap-1.5"
-                >
-                  {copiedSummary ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copiedSummary ? 'Copied!' : 'Copy Summary'}
-                </button>
-                <button
-                  onClick={handleRunAiExpenseSummary}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Re-Analyze
-                </button>
-              </div>
-
-              <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-sm space-y-3 text-xs leading-relaxed text-slate-800 dir-ltr text-left">
-                {aiSummary.split('\n').map((line, idx) => {
-                  const trimmed = line.trim();
-                  if (!trimmed) return <div key={idx} className="h-1" />;
-                  if (trimmed.startsWith('#') || trimmed.startsWith('1.') || trimmed.startsWith('2.') || trimmed.startsWith('3.')) {
-                    return (
-                      <h3 key={idx} className="font-extrabold text-sm text-slate-900 border-b pb-1 mt-3 text-blue-900 flex items-center gap-1.5">
-                        {trimmed.replace(/^[#\d\.\s]+/, '')}
-                      </h3>
-                    );
-                  }
-                  if (trimmed.startsWith('-') || trimmed.startsWith('*') || trimmed.startsWith('•')) {
-                    return (
-                      <div key={idx} className="flex items-start gap-2 pl-2 py-0.5">
-                        <span className="text-emerald-600 font-bold text-base leading-none">•</span>
-                        <p className="flex-1">
-                          {trimmed.replace(/^[-*•]\s*/, '').split(/(\*\*.*?\*\*)/).map((part, pIdx) => {
-                            if (part.startsWith('**') && part.endsWith('**')) {
-                              return <strong key={pIdx} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
-                            }
-                            return part;
-                          })}
-                        </p>
-                      </div>
-                    );
-                  }
-                  return (
-                    <p key={idx} className="text-slate-700">
-                      {trimmed.split(/(\*\*.*?\*\*)/).map((part, pIdx) => {
-                        if (part.startsWith('**') && part.endsWith('**')) {
-                          return <strong key={pIdx} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
-                        }
-                        return part;
-                      })}
-                    </p>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="p-8 text-center space-y-4 bg-gradient-to-br from-blue-50 to-emerald-50 rounded-xl border border-blue-200">
-              <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center mx-auto shadow-md">
-                <BrainCircuit className="w-6 h-6" />
-              </div>
-              <div>
-                <h3 className="font-bold text-slate-900 text-sm">Generate AI Cost-Saving Analysis Report</h3>
-                <p className="text-xs text-slate-600 max-w-md mx-auto mt-1">
-                  Analyze the last 90 days of vehicle repair bills, fuel refill logs, and driver breakdown frequencies to uncover immediate savings opportunities.
-                </p>
-              </div>
-              <button
-                onClick={handleRunAiExpenseSummary}
-                disabled={isAnalyzing}
-                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs shadow-md transition inline-flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                Generate 3-Month AI Analysis
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Footer Note */}
-      <div className="border-t border-slate-300 pt-4 text-center text-[10px] text-slate-500 font-mono">
-        <p>{settings.printFooterNote || `${settings.companyName} • Official Fleet Management Report`}</p>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
@@ -1247,7 +1235,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
           </button>
         </div>
 
-        {/* 3M Expense Stats Quick Overview */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 text-xs font-mono">
           <div>
             <span className="text-slate-400 block text-[10px]">3M Maintenance:</span>
