@@ -1,0 +1,8 @@
+{
+  "name": "YAMANIX - نظام إدارة أسطول السيارات والسائقين",
+  "description": "نظام متكامل لمتابعة سيارات الشركة، السائقين، مصاريف الصيانة والقطع والتجديد، رخص القيادة والتأمين، منصة التوقيع والاستلام، وتقارير الطباعة المخصصة.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
