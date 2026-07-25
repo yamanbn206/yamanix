@@ -165,43 +165,51 @@ export default function App() {
     return settings;
   }, [activeCompanyId, companies, settings, lang]);
 
-  // Data Filtering per Active Company
+  // Data Filtering per Active Company (مع التحقق من المصفوفة)
   const filteredVehicles = useMemo(() => {
+    if (!Array.isArray(vehicles)) return [];
     if (activeCompanyId === 'all') return vehicles;
     return vehicles.filter(v => (v.companyId || 'comp-1') === activeCompanyId);
   }, [vehicles, activeCompanyId]);
 
   const filteredDrivers = useMemo(() => {
+    if (!Array.isArray(drivers)) return [];
     if (activeCompanyId === 'all') return drivers;
     return drivers.filter(d => (d.companyId || 'comp-1') === activeCompanyId);
   }, [drivers, activeCompanyId]);
 
   const filteredGarages = useMemo(() => {
+    if (!Array.isArray(garages)) return [];
     if (activeCompanyId === 'all') return garages;
     return garages.filter(g => !g.companyId || g.companyId === activeCompanyId);
   }, [garages, activeCompanyId]);
 
   const filteredMaintenance = useMemo(() => {
+    if (!Array.isArray(maintenance)) return [];
     if (activeCompanyId === 'all') return maintenance;
     return maintenance.filter(m => (m.companyId || 'comp-1') === activeCompanyId);
   }, [maintenance, activeCompanyId]);
 
   const filteredFuel = useMemo(() => {
+    if (!Array.isArray(fuel)) return [];
     if (activeCompanyId === 'all') return fuel;
     return fuel.filter(f => (f.companyId || 'comp-1') === activeCompanyId);
   }, [fuel, activeCompanyId]);
 
   const filteredExpenses = useMemo(() => {
+    if (!Array.isArray(expenses)) return [];
     if (activeCompanyId === 'all') return expenses;
     return expenses.filter(e => (e.companyId || 'comp-1') === activeCompanyId);
   }, [expenses, activeCompanyId]);
 
   const filteredCheckouts = useMemo(() => {
+    if (!Array.isArray(checkouts)) return [];
     if (activeCompanyId === 'all') return checkouts;
     return checkouts.filter(c => (c.companyId || 'comp-1') === activeCompanyId);
   }, [checkouts, activeCompanyId]);
 
   const filteredDocuments = useMemo(() => {
+    if (!Array.isArray(documents)) return [];
     if (activeCompanyId === 'all') return documents;
     return documents.filter(doc => (doc.companyId || 'comp-1') === activeCompanyId);
   }, [documents, activeCompanyId]);
@@ -255,15 +263,33 @@ export default function App() {
   useEffect(() => {
     const handleStorageUpdate = () => {
       setCompanies(storage.getCompanies());
-      setVehicles(storage.getVehicles());
-      setDrivers(storage.getDrivers());
-      setGarages(storage.getGarages());
-      setMaintenance(storage.getMaintenanceRecords());
-      setFuel(storage.getFuelRecords());
-      setExpenses(storage.getExpenseRecords());
-      setCheckouts(storage.getCheckoutSessions());
-      setSettings(storage.getSettings());
-      setDocuments(storage.getDocuments());
+      // نستخدم loadData هنا أيضاً لتحديث البيانات من Supabase عند أي تغيير
+      const loadData = async () => {
+        try {
+          const [vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
+            storage.getVehicles(),
+            storage.getDrivers(),
+            storage.getGarages(),
+            storage.getMaintenanceRecords(),
+            storage.getFuelRecords(),
+            storage.getExpenseRecords(),
+            storage.getCheckoutSessions(),
+            storage.getDocuments()
+          ]);
+
+          setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
+          setDrivers(Array.isArray(driversData) ? driversData : []);
+          setGarages(Array.isArray(garagesData) ? garagesData : []);
+          setMaintenance(Array.isArray(maintenanceData) ? maintenanceData : []);
+          setFuel(Array.isArray(fuelData) ? fuelData : []);
+          setExpenses(Array.isArray(expensesData) ? expensesData : []);
+          setCheckouts(Array.isArray(checkoutsData) ? checkoutsData : []);
+          setDocuments(Array.isArray(documentsData) ? documentsData : []);
+        } catch (error) {
+          console.error('Failed to load data from Supabase:', error);
+        }
+      };
+      loadData();
     };
 
     window.addEventListener('fleet_storage_update', handleStorageUpdate);
