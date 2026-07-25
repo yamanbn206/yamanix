@@ -25,29 +25,9 @@ import {
 import { supabase } from './supabase';
 
 // ====================================================
-// مفاتيح التخزين (لم تعد مستخدمة، لكن نبقيها للتوافق)
-// ====================================================
-const KEYS = {
-  COMPANIES: 'fleet_app_companies_v1',
-  ACTIVE_COMPANY_ID: 'fleet_app_active_company_id_v1',
-  VEHICLES: 'fleet_app_vehicles_v1',
-  DRIVERS: 'fleet_app_drivers_v1',
-  GARAGES: 'fleet_app_garages_v1',
-  MAINTENANCE: 'fleet_app_maintenance_v1',
-  FUEL: 'fleet_app_fuel_v1',
-  EXPENSES: 'fleet_app_expenses_v1',
-  CHECKOUTS: 'fleet_app_checkouts_v1',
-  SETTINGS: 'fleet_app_settings_v1',
-  DOCUMENTS: 'fleet_app_documents_v1',
-  PENDING_SYNC: 'fleet_app_pending_sync_v1',
-  LAST_SYNC_TIME: 'fleet_app_last_sync_time_v1',
-};
-
-// ====================================================
 // دوال مساعدة لتحويل camelCase ↔ snake_case
 // ====================================================
 
-/** تحويل camelCase إلى snake_case */
 function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
@@ -60,7 +40,6 @@ function toSnakeCase(obj: any): any {
   return result;
 }
 
-/** تحويل snake_case إلى camelCase */
 function toCamelCase(obj: any): any {
   if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(toCamelCase);
@@ -91,7 +70,7 @@ export const storage = {
     } catch (e) {
       console.error('❌ Failed to fetch companies from Supabase:', e);
     }
-    return initialCompanies;
+    return [];
   },
 
   saveCompanies: async (companies: Company[]) => {
@@ -107,8 +86,8 @@ export const storage = {
   },
 
   // ===== ACTIVE COMPANY ID =====
-  getActiveCompanyId: (): string => 'comp-1', // القيمة الافتراضية
-  setActiveCompanyId: (_id: string) => { /* لا شيء */ },
+  getActiveCompanyId: (): string => 'comp-1',
+  setActiveCompanyId: (_id: string) => {},
 
   // ===== VEHICLES =====
   getVehicles: async (): Promise<Vehicle[]> => {
@@ -117,13 +96,13 @@ export const storage = {
         .from('vehicles')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data)) {
+      if (!error && data && Array.isArray(data) && data.length > 0) {
         return toCamelCase(data);
       }
     } catch (e) {
       console.error('❌ Failed to fetch vehicles from Supabase:', e);
     }
-    return initialVehicles;
+    return [];
   },
 
   saveVehicles: async (vehicles: Vehicle[]) => {
@@ -149,13 +128,13 @@ export const storage = {
         .from('drivers')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data)) {
+      if (!error && data && Array.isArray(data) && data.length > 0) {
         return toCamelCase(data);
       }
     } catch (e) {
       console.error('❌ Failed to fetch drivers from Supabase:', e);
     }
-    return initialDrivers;
+    return [];
   },
 
   saveDrivers: async (drivers: Driver[]) => {
@@ -164,9 +143,7 @@ export const storage = {
       const { error } = await supabase
         .from('drivers')
         .upsert(toSnakeCase(drivers), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync drivers to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync drivers to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync drivers error:', e);
     }
@@ -179,13 +156,13 @@ export const storage = {
         .from('garages')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data)) {
+      if (!error && data && Array.isArray(data) && data.length > 0) {
         return toCamelCase(data);
       }
     } catch (e) {
       console.error('❌ Failed to fetch garages from Supabase:', e);
     }
-    return initialGarages;
+    return [];
   },
 
   saveGarages: async (garages: Garage[]) => {
@@ -207,13 +184,13 @@ export const storage = {
         .from('maintenance_records')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data)) {
+      if (!error && data && Array.isArray(data) && data.length > 0) {
         return toCamelCase(data);
       }
     } catch (e) {
       console.error('❌ Failed to fetch maintenance records from Supabase:', e);
     }
-    return initialMaintenanceRecords;
+    return [];
   },
 
   saveMaintenanceRecords: async (records: MaintenanceRecord[]) => {
@@ -235,13 +212,13 @@ export const storage = {
         .from('fuel_records')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data)) {
+      if (!error && data && Array.isArray(data) && data.length > 0) {
         return toCamelCase(data);
       }
     } catch (e) {
       console.error('❌ Failed to fetch fuel records from Supabase:', e);
     }
-    return initialFuelRecords;
+    return [];
   },
 
   saveFuelRecords: async (records: FuelRecord[]) => {
@@ -263,13 +240,13 @@ export const storage = {
         .from('expenses')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data)) {
+      if (!error && data && Array.isArray(data) && data.length > 0) {
         return toCamelCase(data);
       }
     } catch (e) {
       console.error('❌ Failed to fetch expenses from Supabase:', e);
     }
-    return initialExpenseRecords;
+    return [];
   },
 
   saveExpenseRecords: async (records: ExpenseRecord[]) => {
@@ -291,13 +268,13 @@ export const storage = {
         .from('checkout_sessions')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data)) {
+      if (!error && data && Array.isArray(data) && data.length > 0) {
         return toCamelCase(data);
       }
     } catch (e) {
       console.error('❌ Failed to fetch checkout sessions from Supabase:', e);
     }
-    return initialCheckoutSessions;
+    return [];
   },
 
   saveCheckoutSessions: async (sessions: CheckoutSession[]) => {
@@ -312,13 +289,10 @@ export const storage = {
     }
   },
 
-  // ===== SETTINGS (تبقى فقط البيانات المحلية للعرض، لأن الإعدادات ليست في Supabase) =====
-  getSettings: (): CompanySettings => {
-    return initialCompanySettings;
-  },
+  // ===== SETTINGS =====
+  getSettings: (): CompanySettings => initialCompanySettings,
   saveSettings: (settings: CompanySettings) => {
     console.warn('⚠️ Settings are not saved to Supabase yet (local only)');
-    // يمكنك لاحقاً حفظها في جدول settings إن أردت
   },
 
   // ===== DOCUMENTS =====
@@ -328,13 +302,13 @@ export const storage = {
         .from('documents')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data)) {
+      if (!error && data && Array.isArray(data) && data.length > 0) {
         return toCamelCase(data);
       }
     } catch (e) {
       console.error('❌ Failed to fetch documents from Supabase:', e);
     }
-    return initialCompanyDocuments;
+    return [];
   },
 
   saveDocuments: async (docs: CompanyDocument[]) => {
@@ -349,12 +323,11 @@ export const storage = {
     }
   },
 
-  // ===== دوال التوافق (لم تعد تستخدم التخزين المحلي) =====
+  // ===== دوال التوافق (لم تعد مستخدمة) =====
   getPendingSyncCount: (): number => 0,
   getLastSyncTime: (): string | null => null,
-  clearPendingSync: (): void => { /* لا شيء */ },
+  clearPendingSync: (): void => {},
   resetToDefaults: () => {
-    // يمكنك إضافة منطق لحذف البيانات من Supabase هنا إذا أردت
     console.warn('⚠️ Reset to defaults is not implemented for Supabase yet');
   }
 };

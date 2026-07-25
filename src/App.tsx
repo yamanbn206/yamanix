@@ -63,8 +63,8 @@ export default function App() {
   const toastRef = React.useRef<ToastRefHandler>(null);
 
   // Multi-Company State
-  const [companies, setCompanies] = useState<Company[]>(() => storage.getCompanies());
-  const [activeCompanyId, setActiveCompanyIdState] = useState<string>(() => storage.getActiveCompanyId());
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [activeCompanyId, setActiveCompanyIdState] = useState<string>('comp-1');
 
   // App Main State (تهيئة بقيم افتراضية فارغة)
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -81,7 +81,8 @@ export default function App() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
+        const [companiesData, vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
+          storage.getCompanies(),
           storage.getVehicles(),
           storage.getDrivers(),
           storage.getGarages(),
@@ -92,6 +93,7 @@ export default function App() {
           storage.getDocuments()
         ]);
 
+        setCompanies(Array.isArray(companiesData) ? companiesData : []);
         setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
         setDrivers(Array.isArray(driversData) ? driversData : []);
         setGarages(Array.isArray(garagesData) ? garagesData : []);
@@ -114,16 +116,16 @@ export default function App() {
     storage.setActiveCompanyId(id);
   };
 
-  const handleAddCompany = (newComp: Company) => {
+  const handleAddCompany = async (newComp: Company) => {
     const updated = [...companies, newComp];
     setCompanies(updated);
-    storage.saveCompanies(updated);
+    await storage.saveCompanies(updated);
   };
 
-  const handleDeleteCompany = (compDeleteId: string) => {
+  const handleDeleteCompany = async (compDeleteId: string) => {
     const updated = companies.filter(c => c.id !== compDeleteId);
     setCompanies(updated);
-    storage.saveCompanies(updated);
+    await storage.saveCompanies(updated);
     if (activeCompanyId === compDeleteId) {
       const nextId = updated[0]?.id || 'comp-1';
       handleSelectCompany(nextId);
@@ -259,43 +261,6 @@ export default function App() {
     return count;
   }, [filteredVehicles, filteredDrivers]);
 
-  // Sync state when storage changes
-  useEffect(() => {
-    const handleStorageUpdate = () => {
-      setCompanies(storage.getCompanies());
-      // نستخدم loadData هنا أيضاً لتحديث البيانات من Supabase عند أي تغيير
-      const loadData = async () => {
-        try {
-          const [vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
-            storage.getVehicles(),
-            storage.getDrivers(),
-            storage.getGarages(),
-            storage.getMaintenanceRecords(),
-            storage.getFuelRecords(),
-            storage.getExpenseRecords(),
-            storage.getCheckoutSessions(),
-            storage.getDocuments()
-          ]);
-
-          setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
-          setDrivers(Array.isArray(driversData) ? driversData : []);
-          setGarages(Array.isArray(garagesData) ? garagesData : []);
-          setMaintenance(Array.isArray(maintenanceData) ? maintenanceData : []);
-          setFuel(Array.isArray(fuelData) ? fuelData : []);
-          setExpenses(Array.isArray(expensesData) ? expensesData : []);
-          setCheckouts(Array.isArray(checkoutsData) ? checkoutsData : []);
-          setDocuments(Array.isArray(documentsData) ? documentsData : []);
-        } catch (error) {
-          console.error('Failed to load data from Supabase:', error);
-        }
-      };
-      loadData();
-    };
-
-    window.addEventListener('fleet_storage_update', handleStorageUpdate);
-    return () => window.removeEventListener('fleet_storage_update', handleStorageUpdate);
-  }, []);
-
   // Dark mode handler
   useEffect(() => {
     if (darkMode) {
@@ -305,8 +270,8 @@ export default function App() {
     }
   }, [darkMode]);
 
-  // Actions with Company ID auto-assignment
-  const handleSaveVehicle = (v: Vehicle) => {
+  // ===== دوال الحفظ غير المتزامنة (async/await) =====
+  const handleSaveVehicle = async (v: Vehicle) => {
     const compId = v.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedVehicle = { ...v, companyId: compId };
     const updated = vehicles.some(existing => existing.id === v.id)
@@ -314,16 +279,16 @@ export default function App() {
       : [updatedVehicle, ...vehicles];
     
     setVehicles(updated);
-    storage.saveVehicles(updated);
+    await storage.saveVehicles(updated);
   };
 
-  const handleDeleteVehicle = (vId: string) => {
+  const handleDeleteVehicle = async (vId: string) => {
     const updated = vehicles.filter(v => v.id !== vId);
     setVehicles(updated);
-    storage.saveVehicles(updated);
+    await storage.saveVehicles(updated);
   };
 
-  const handleSaveDriver = (d: Driver) => {
+  const handleSaveDriver = async (d: Driver) => {
     const compId = d.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedDriver = { ...d, companyId: compId };
     const updated = drivers.some(existing => existing.id === d.id)
@@ -331,30 +296,30 @@ export default function App() {
       : [updatedDriver, ...drivers];
     
     setDrivers(updated);
-    storage.saveDrivers(updated);
+    await storage.saveDrivers(updated);
   };
 
-  const handleDeleteDriver = (dId: string) => {
+  const handleDeleteDriver = async (dId: string) => {
     const updated = drivers.filter(d => d.id !== dId);
     setDrivers(updated);
-    storage.saveDrivers(updated);
+    await storage.saveDrivers(updated);
   };
 
-  const handleSaveCheckout = (session: CheckoutSession) => {
+  const handleSaveCheckout = async (session: CheckoutSession) => {
     const compId = session.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedSession = { ...session, companyId: compId };
     const updated = [updatedSession, ...checkouts];
     setCheckouts(updated);
-    storage.saveCheckoutSessions(updated);
+    await storage.saveCheckoutSessions(updated);
 
     const updatedVehicles = vehicles.map(v => 
       v.id === session.vehicleId ? { ...v, status: 'checked_out' as const, mileage: session.checkoutOdometer } : v
     );
     setVehicles(updatedVehicles);
-    storage.saveVehicles(updatedVehicles);
+    await storage.saveVehicles(updatedVehicles);
   };
 
-  const handleReturnVehicle = (sessionId: string, returnData: Partial<CheckoutSession>) => {
+  const handleReturnVehicle = async (sessionId: string, returnData: Partial<CheckoutSession>) => {
     const updated = checkouts.map(c => {
       if (c.id === sessionId) {
         return { ...c, ...returnData };
@@ -363,7 +328,7 @@ export default function App() {
     });
 
     setCheckouts(updated);
-    storage.saveCheckoutSessions(updated);
+    await storage.saveCheckoutSessions(updated);
 
     const session = checkouts.find(c => c.id === sessionId);
     if (session) {
@@ -372,62 +337,62 @@ export default function App() {
         v.id === session.vehicleId ? { ...v, status: 'available' as const, mileage: newOdometer } : v
       );
       setVehicles(updatedVehicles);
-      storage.saveVehicles(updatedVehicles);
+      await storage.saveVehicles(updatedVehicles);
     }
   };
 
-  const handleSaveMaintenance = (record: MaintenanceRecord) => {
+  const handleSaveMaintenance = async (record: MaintenanceRecord) => {
     const compId = record.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedRecord = { ...record, companyId: compId };
     const exists = maintenance.some(m => m.id === record.id);
     const updated = exists ? maintenance.map(m => m.id === record.id ? updatedRecord : m) : [updatedRecord, ...maintenance];
     setMaintenance(updated);
-    storage.saveMaintenanceRecords(updated);
+    await storage.saveMaintenanceRecords(updated);
   };
 
-  const handleDeleteMaintenance = (mId: string) => {
+  const handleDeleteMaintenance = async (mId: string) => {
     const updated = maintenance.filter(m => m.id !== mId);
     setMaintenance(updated);
-    storage.saveMaintenanceRecords(updated);
+    await storage.saveMaintenanceRecords(updated);
   };
 
-  const handleSaveGarage = (g: Garage) => {
+  const handleSaveGarage = async (g: Garage) => {
     const compId = g.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedGarage = { ...g, companyId: compId };
     const exists = garages.some(existing => existing.id === g.id);
     const updated = exists ? garages.map(existing => existing.id === g.id ? updatedGarage : existing) : [updatedGarage, ...garages];
     setGarages(updated);
-    storage.saveGarages(updated);
+    await storage.saveGarages(updated);
   };
 
-  const handleSaveFuel = (record: FuelRecord) => {
+  const handleSaveFuel = async (record: FuelRecord) => {
     const compId = record.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedRecord = { ...record, companyId: compId };
     const exists = fuel.some(f => f.id === record.id);
     const updated = exists ? fuel.map(f => f.id === record.id ? record : f) : [updatedRecord, ...fuel];
     setFuel(updated);
-    storage.saveFuelRecords(updated);
+    await storage.saveFuelRecords(updated);
   };
 
-  const handleDeleteFuel = (fId: string) => {
+  const handleDeleteFuel = async (fId: string) => {
     const updated = fuel.filter(f => f.id !== fId);
     setFuel(updated);
-    storage.saveFuelRecords(updated);
+    await storage.saveFuelRecords(updated);
   };
 
-  const handleSaveExpense = (record: ExpenseRecord) => {
+  const handleSaveExpense = async (record: ExpenseRecord) => {
     const compId = record.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedRecord = { ...record, companyId: compId };
     const exists = expenses.some(e => e.id === record.id);
     const updated = exists ? expenses.map(e => e.id === record.id ? updatedRecord : e) : [updatedRecord, ...expenses];
     setExpenses(updated);
-    storage.saveExpenseRecords(updated);
+    await storage.saveExpenseRecords(updated);
   };
 
-  const handleDeleteExpense = (eId: string) => {
+  const handleDeleteExpense = async (eId: string) => {
     const updated = expenses.filter(e => e.id !== eId);
     setExpenses(updated);
-    storage.saveExpenseRecords(updated);
+    await storage.saveExpenseRecords(updated);
   };
 
   const handleSaveSettings = (newSettings: CompanySettings) => {
@@ -451,16 +416,15 @@ export default function App() {
 
     setCompanies(updatedCompanies);
     storage.saveCompanies(updatedCompanies);
-
     setSettings(newSettings);
     storage.saveSettings(newSettings);
   };
 
-  const handleSaveDocuments = (docs: CompanyDocument[]) => {
+  const handleSaveDocuments = async (docs: CompanyDocument[]) => {
     const compId = activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId;
     const docsWithComp = docs.map(d => ({ ...d, companyId: d.companyId || compId }));
     setDocuments(docsWithComp);
-    storage.saveDocuments(docsWithComp);
+    await storage.saveDocuments(docsWithComp);
   };
 
   const handlePrintReceipt = (session: CheckoutSession) => {
