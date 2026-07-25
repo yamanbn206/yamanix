@@ -53,15 +53,12 @@ function getItem<T>(key: string, defaultValue: T): T {
 function setItem<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
-    
-    // Track pending offline changes if connection is offline
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       const currentPending = getItem<number>(KEYS.PENDING_SYNC, 0);
       localStorage.setItem(KEYS.PENDING_SYNC, JSON.stringify(currentPending + 1));
     } else {
       localStorage.setItem(KEYS.LAST_SYNC_TIME, JSON.stringify(new Date().toISOString()));
     }
-
     window.dispatchEvent(new Event('fleet_storage_update'));
     window.dispatchEvent(new Event('fleet_pending_sync_update'));
   } catch (e) {
@@ -69,207 +66,232 @@ function setItem<T>(key: string, value: T): void {
   }
 }
 
-// Helper function to sync data with Supabase
-async function syncToSupabase<T>(
-  tableName: string,
-  data: T[],
-  onConflict: string = 'id'
-): Promise<void> {
-  try {
-    const { error } = await supabase
-      .from(tableName)
-      .upsert(data, { onConflict });
-
-    if (error) {
-      console.error(`Sync to Supabase (${tableName}) failed:`, error);
-    } else {
-      console.log(`✅ ${tableName} synced to Supabase successfully`);
-    }
-  } catch (e) {
-    console.error(`Sync error for ${tableName}:`, e);
-  }
-}
-
-// Helper function to fetch data from Supabase
-async function fetchFromSupabase<T>(
-  tableName: string,
-  orderBy: string = 'created_at',
-  ascending: boolean = false
-): Promise<T[]> {
-  try {
-    const { data, error } = await supabase
-      .from(tableName)
-      .select('*')
-      .order(orderBy, { ascending });
-
-    if (!error && data && data.length > 0) {
-      return data as T[];
-    }
-    return [];
-  } catch (e) {
-    console.warn(`Supabase fetch failed for ${tableName}:`, e);
-    return [];
-  }
-}
-
 export const storage = {
-  // Companies
-  getCompanies: async (): Promise<Company[]> => {
-    const localData = getItem<Company[]>(KEYS.COMPANIES, initialCompanies);
-    try {
-      const supabaseData = await fetchFromSupabase<Company>('companies');
-      if (supabaseData.length > 0) {
-        localStorage.setItem(KEYS.COMPANIES, JSON.stringify(supabaseData));
-        return supabaseData;
-      }
-    } catch (e) {
-      console.warn('Failed to fetch companies from Supabase, using local data');
-    }
-    return localData;
-  },
-  saveCompanies: async (companies: Company[]) => {
-    setItem(KEYS.COMPANIES, companies);
-    await syncToSupabase('companies', companies);
-  },
+  // ===== COMPANIES (تبقى محلية فقط) =====
+  getCompanies: (): Company[] => getItem(KEYS.COMPANIES, initialCompanies),
+  saveCompanies: (companies: Company[]) => setItem(KEYS.COMPANIES, companies),
 
-  // Active Company ID
   getActiveCompanyId: (): string => getItem(KEYS.ACTIVE_COMPANY_ID, 'comp-1'),
   setActiveCompanyId: (id: string) => setItem(KEYS.ACTIVE_COMPANY_ID, id),
 
-  // Vehicles
+  // ===== VEHICLES =====
   getVehicles: async (): Promise<Vehicle[]> => {
-    const localData = getItem<Vehicle[]>(KEYS.VEHICLES, initialVehicles);
     try {
-      const supabaseData = await fetchFromSupabase<Vehicle>('vehicles');
-      if (supabaseData.length > 0) {
-        localStorage.setItem(KEYS.VEHICLES, JSON.stringify(supabaseData));
-        return supabaseData;
+      const { data, error } = await supabase
+        .from('vehicles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.VEHICLES, JSON.stringify(data));
+        return data;
       }
     } catch (e) {
-      console.warn('Failed to fetch vehicles from Supabase, using local data');
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return localData;
+    const local = getItem<Vehicle[]>(KEYS.VEHICLES, initialVehicles);
+    return Array.isArray(local) ? local : initialVehicles;
   },
+
   saveVehicles: async (vehicles: Vehicle[]) => {
+    if (!Array.isArray(vehicles)) return;
     setItem(KEYS.VEHICLES, vehicles);
-    await syncToSupabase('vehicles', vehicles);
+    try {
+      const { error } = await supabase
+        .from('vehicles')
+        .upsert(vehicles, { onConflict: 'id' });
+      if (error) console.error('Sync to Supabase failed:', error);
+    } catch (e) {
+      console.error('Sync error:', e);
+    }
   },
 
-  // Drivers
+  // ===== DRIVERS =====
   getDrivers: async (): Promise<Driver[]> => {
-    const localData = getItem<Driver[]>(KEYS.DRIVERS, initialDrivers);
     try {
-      const supabaseData = await fetchFromSupabase<Driver>('drivers');
-      if (supabaseData.length > 0) {
-        localStorage.setItem(KEYS.DRIVERS, JSON.stringify(supabaseData));
-        return supabaseData;
+      const { data, error } = await supabase
+        .from('drivers')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.DRIVERS, JSON.stringify(data));
+        return data;
       }
     } catch (e) {
-      console.warn('Failed to fetch drivers from Supabase, using local data');
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return localData;
+    const local = getItem<Driver[]>(KEYS.DRIVERS, initialDrivers);
+    return Array.isArray(local) ? local : initialDrivers;
   },
+
   saveDrivers: async (drivers: Driver[]) => {
+    if (!Array.isArray(drivers)) return;
     setItem(KEYS.DRIVERS, drivers);
-    await syncToSupabase('drivers', drivers);
+    try {
+      const { error } = await supabase
+        .from('drivers')
+        .upsert(drivers, { onConflict: 'id' });
+      if (error) console.error('Sync to Supabase failed:', error);
+    } catch (e) {
+      console.error('Sync error:', e);
+    }
   },
 
-  // Garages
+  // ===== GARAGES =====
   getGarages: async (): Promise<Garage[]> => {
-    const localData = getItem<Garage[]>(KEYS.GARAGES, initialGarages);
     try {
-      const supabaseData = await fetchFromSupabase<Garage>('garages');
-      if (supabaseData.length > 0) {
-        localStorage.setItem(KEYS.GARAGES, JSON.stringify(supabaseData));
-        return supabaseData;
+      const { data, error } = await supabase
+        .from('garages')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.GARAGES, JSON.stringify(data));
+        return data;
       }
     } catch (e) {
-      console.warn('Failed to fetch garages from Supabase, using local data');
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return localData;
+    const local = getItem<Garage[]>(KEYS.GARAGES, initialGarages);
+    return Array.isArray(local) ? local : initialGarages;
   },
+
   saveGarages: async (garages: Garage[]) => {
+    if (!Array.isArray(garages)) return;
     setItem(KEYS.GARAGES, garages);
-    await syncToSupabase('garages', garages);
+    try {
+      const { error } = await supabase
+        .from('garages')
+        .upsert(garages, { onConflict: 'id' });
+      if (error) console.error('Sync to Supabase failed:', error);
+    } catch (e) {
+      console.error('Sync error:', e);
+    }
   },
 
-  // Maintenance Records
+  // ===== MAINTENANCE RECORDS =====
   getMaintenanceRecords: async (): Promise<MaintenanceRecord[]> => {
-    const localData = getItem<MaintenanceRecord[]>(KEYS.MAINTENANCE, initialMaintenanceRecords);
     try {
-      const supabaseData = await fetchFromSupabase<MaintenanceRecord>('maintenance_records');
-      if (supabaseData.length > 0) {
-        localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(supabaseData));
-        return supabaseData;
+      const { data, error } = await supabase
+        .from('maintenance_records')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(data));
+        return data;
       }
     } catch (e) {
-      console.warn('Failed to fetch maintenance records from Supabase, using local data');
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return localData;
+    const local = getItem<MaintenanceRecord[]>(KEYS.MAINTENANCE, initialMaintenanceRecords);
+    return Array.isArray(local) ? local : initialMaintenanceRecords;
   },
+
   saveMaintenanceRecords: async (records: MaintenanceRecord[]) => {
+    if (!Array.isArray(records)) return;
     setItem(KEYS.MAINTENANCE, records);
-    await syncToSupabase('maintenance_records', records);
+    try {
+      const { error } = await supabase
+        .from('maintenance_records')
+        .upsert(records, { onConflict: 'id' });
+      if (error) console.error('Sync to Supabase failed:', error);
+    } catch (e) {
+      console.error('Sync error:', e);
+    }
   },
 
-  // Fuel Records
+  // ===== FUEL RECORDS =====
   getFuelRecords: async (): Promise<FuelRecord[]> => {
-    const localData = getItem<FuelRecord[]>(KEYS.FUEL, initialFuelRecords);
     try {
-      const supabaseData = await fetchFromSupabase<FuelRecord>('fuel_records');
-      if (supabaseData.length > 0) {
-        localStorage.setItem(KEYS.FUEL, JSON.stringify(supabaseData));
-        return supabaseData;
+      const { data, error } = await supabase
+        .from('fuel_records')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.FUEL, JSON.stringify(data));
+        return data;
       }
     } catch (e) {
-      console.warn('Failed to fetch fuel records from Supabase, using local data');
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return localData;
+    const local = getItem<FuelRecord[]>(KEYS.FUEL, initialFuelRecords);
+    return Array.isArray(local) ? local : initialFuelRecords;
   },
+
   saveFuelRecords: async (records: FuelRecord[]) => {
+    if (!Array.isArray(records)) return;
     setItem(KEYS.FUEL, records);
-    await syncToSupabase('fuel_records', records);
+    try {
+      const { error } = await supabase
+        .from('fuel_records')
+        .upsert(records, { onConflict: 'id' });
+      if (error) console.error('Sync to Supabase failed:', error);
+    } catch (e) {
+      console.error('Sync error:', e);
+    }
   },
 
-  // Expenses
+  // ===== EXPENSE RECORDS =====
   getExpenseRecords: async (): Promise<ExpenseRecord[]> => {
-    const localData = getItem<ExpenseRecord[]>(KEYS.EXPENSES, initialExpenseRecords);
     try {
-      const supabaseData = await fetchFromSupabase<ExpenseRecord>('expenses');
-      if (supabaseData.length > 0) {
-        localStorage.setItem(KEYS.EXPENSES, JSON.stringify(supabaseData));
-        return supabaseData;
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.EXPENSES, JSON.stringify(data));
+        return data;
       }
     } catch (e) {
-      console.warn('Failed to fetch expenses from Supabase, using local data');
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return localData;
+    const local = getItem<ExpenseRecord[]>(KEYS.EXPENSES, initialExpenseRecords);
+    return Array.isArray(local) ? local : initialExpenseRecords;
   },
+
   saveExpenseRecords: async (records: ExpenseRecord[]) => {
+    if (!Array.isArray(records)) return;
     setItem(KEYS.EXPENSES, records);
-    await syncToSupabase('expenses', records);
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .upsert(records, { onConflict: 'id' });
+      if (error) console.error('Sync to Supabase failed:', error);
+    } catch (e) {
+      console.error('Sync error:', e);
+    }
   },
 
-  // Checkout Sessions
+  // ===== CHECKOUT SESSIONS =====
   getCheckoutSessions: async (): Promise<CheckoutSession[]> => {
-    const localData = getItem<CheckoutSession[]>(KEYS.CHECKOUTS, initialCheckoutSessions);
     try {
-      const supabaseData = await fetchFromSupabase<CheckoutSession>('checkout_sessions');
-      if (supabaseData.length > 0) {
-        localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(supabaseData));
-        return supabaseData;
+      const { data, error } = await supabase
+        .from('checkout_sessions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(data));
+        return data;
       }
     } catch (e) {
-      console.warn('Failed to fetch checkout sessions from Supabase, using local data');
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return localData;
-  },
-  saveCheckoutSessions: async (sessions: CheckoutSession[]) => {
-    setItem(KEYS.CHECKOUTS, sessions);
-    await syncToSupabase('checkout_sessions', sessions);
+    const local = getItem<CheckoutSession[]>(KEYS.CHECKOUTS, initialCheckoutSessions);
+    return Array.isArray(local) ? local : initialCheckoutSessions;
   },
 
-  // Settings (stays local, no Supabase sync for now)
+  saveCheckoutSessions: async (sessions: CheckoutSession[]) => {
+    if (!Array.isArray(sessions)) return;
+    setItem(KEYS.CHECKOUTS, sessions);
+    try {
+      const { error } = await supabase
+        .from('checkout_sessions')
+        .upsert(sessions, { onConflict: 'id' });
+      if (error) console.error('Sync to Supabase failed:', error);
+    } catch (e) {
+      console.error('Sync error:', e);
+    }
+  },
+
+  // ===== SETTINGS (تبقى محلية فقط) =====
   getSettings: (): CompanySettings => {
     const s = getItem(KEYS.SETTINGS, initialCompanySettings);
     if (!s.companyName || s.companyName.includes('شركة المسار اللوجستية')) {
@@ -279,25 +301,38 @@ export const storage = {
   },
   saveSettings: (settings: CompanySettings) => setItem(KEYS.SETTINGS, settings),
 
-  // Documents
+  // ===== DOCUMENTS =====
   getDocuments: async (): Promise<CompanyDocument[]> => {
-    const localData = getItem<CompanyDocument[]>(KEYS.DOCUMENTS, initialCompanyDocuments);
     try {
-      const supabaseData = await fetchFromSupabase<CompanyDocument>('documents');
-      if (supabaseData.length > 0) {
-        localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(supabaseData));
-        return supabaseData;
+      const { data, error } = await supabase
+        .from('documents')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(data));
+        return data;
       }
     } catch (e) {
-      console.warn('Failed to fetch documents from Supabase, using local data');
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return localData;
-  },
-  saveDocuments: async (docs: CompanyDocument[]) => {
-    setItem(KEYS.DOCUMENTS, docs);
-    await syncToSupabase('documents', docs);
+    const local = getItem<CompanyDocument[]>(KEYS.DOCUMENTS, initialCompanyDocuments);
+    return Array.isArray(local) ? local : initialCompanyDocuments;
   },
 
+  saveDocuments: async (docs: CompanyDocument[]) => {
+    if (!Array.isArray(docs)) return;
+    setItem(KEYS.DOCUMENTS, docs);
+    try {
+      const { error } = await supabase
+        .from('documents')
+        .upsert(docs, { onConflict: 'id' });
+      if (error) console.error('Sync to Supabase failed:', error);
+    } catch (e) {
+      console.error('Sync error:', e);
+    }
+  },
+
+  // ===== PENDING SYNC =====
   getPendingSyncCount: (): number => getItem<number>(KEYS.PENDING_SYNC, 0),
   getLastSyncTime: (): string | null => getItem<string | null>(KEYS.LAST_SYNC_TIME, null),
 
