@@ -2,74 +2,80 @@ export type VehicleStatus = 'available' | 'checked_out' | 'maintenance' | 'out_o
 
 export interface Company {
   id: string;
-  name: string; // اسم الشركة
-  code?: string; // كود الشركة (رمز اختصاري مثل YMN / MSR)
-  tagline?: string; // النشاط / الشعار النصي
-  logoUrl?: string; // رابط اللوجو
+  name: string;
+  code?: string;
+  tagline?: string;
+  logoUrl?: string;
   phone?: string;
   email?: string;
   address?: string;
-  commercialRegNumber?: string; // السجل التجاري / الرقم الضريبي
-  currency?: string; // العملة
+  commercialRegNumber?: string;
+  currency?: string;
   isDefault?: boolean;
   createdAt?: string;
 }
 
 export interface Vehicle {
   id: string;
-  companyId?: string; // معرف الشركة الممتلكة
-  plateNumber: string; // رقم اللوحة
-  make: string; // الماركة (مثال: تويوتا)
-  model: string; // الموديل (مثال: هايلكس)
-  year: number; // سنة الصنع
-  color: string; // اللون
-  vinNumber?: string; // رقم الهيكل
+  companyId?: string;
+  plateNumber: string;
+  make: string;
+  model: string;
+  year: number;
+  color: string;
+  vinNumber?: string;
   status: VehicleStatus;
-  mileage: number; // عداد الكيلومترات الحالي
+  mileage: number;
   fuelType: '91' | '95' | 'diesel' | 'electric' | 'hybrid';
-  licenseExpiryDate: string; // تاريخ انتهاء رخصة السير/الاستمارة
-  insuranceExpiryDate: string; // تاريخ انتهاء وثيقة التأمين
-  insuranceCompany: string; // شركة التأمين
-  policyNumber: string; // رقم وثيقة التأمين
-  assignedDriverId?: string; // السائق المخصص
-  nextServiceMileage?: number; // القراءة المستهدفة للصيانة القادمة (بالكم)
-  serviceIntervalKm?: number; // فاصل الصيانة الدوري بالكم (افتراضي 5000 أو 10000)
+  licenseExpiryDate: string;
+  insuranceExpiryDate: string;
+  insuranceCompany: string;
+  policyNumber: string;
+  assignedDriverId?: string;
+  nextServiceMileage?: number;
+  serviceIntervalKm?: number;
   notes?: string;
   photoUrl?: string;
+  created_by?: string;
+  updated_by?: string;
 }
 
 export interface Driver {
   id: string;
-  companyId?: string; // معرف الشركة
-  name: string; // اسم السائق
-  phone: string; // رقم الجوال
-  idNumber: string; // رقم الهوية/الإقامة
-  licenseNumber: string; // رقم رخصة القيادة
-  licenseCategory: string; // فئة الرخصة (نقل خفيف، نقل ثقيل، خصوصي)
-  licenseExpiryDate: string; // تاريخ انتهاء رخصة القيادة
-  department: string; // القسم / الإدارة
+  companyId?: string;
+  name: string;
+  phone: string;
+  idNumber: string;
+  licenseNumber: string;
+  licenseCategory: string;
+  licenseExpiryDate: string;
+  department: string;
   status: 'active' | 'inactive';
   notes?: string;
   avatarUrl?: string;
+  created_by?: string;
+  updated_by?: string;
 }
 
 export interface Garage {
   id: string;
   companyId?: string;
-  name: string; // اسم الكراج / الورشة
+  name: string;
   phone: string;
-  contactPerson: string; // مسؤول التواصل
+  contactPerson: string;
   address: string;
-  rating?: number; // تقييم الكراج 1-5
-  specialty: string; // التخصص (ميكانيك، كهرباء، سمكرة وصباغة، شامل)
+  rating?: number;
+  specialty: string;
+  created_by?: string;
+  updated_by?: string;
 }
 
 export interface SparePartItem {
   id: string;
-  partName: string; // اسم القطعة (فلاتر، قماشات فرامل، إطارات، سير محرك...)
+  partName: string;
   category: 'engine' | 'brakes' | 'tires' | 'suspension' | 'electrical' | 'oils_filters' | 'body' | 'other';
-  quantity: number; // الكمية
-  unitCost: number; // سعر القطعة
+  quantity: number;
+  unitCost: number;
 }
 
 export interface MaintenanceRecord {
@@ -77,16 +83,18 @@ export interface MaintenanceRecord {
   companyId?: string;
   vehicleId: string;
   garageId: string;
-  date: string; // تاريخ الصيانة
+  date: string;
   type: 'periodic' | 'breakdown' | 'emergency' | 'accident';
-  description: string; // وصف المشكلة/الصيانة
-  parts: SparePartItem[]; // القطع المستبدلة
-  laborCost: number; // أجرة اليد / المصنعية
-  totalCost: number; // التكلفة الإجمالية (المصنعية + القطع)
-  invoiceNumber: string; // رقم الفاتورة
-  odometerReading: number; // عداد الكيلومترات وقت الصيانة
+  description: string;
+  parts: SparePartItem[];
+  laborCost: number;
+  totalCost: number;
+  invoiceNumber: string;
+  odometerReading: number;
   status: 'completed' | 'pending_payment';
   notes?: string;
+  created_by?: string;
+  updated_by?: string;
 }
 
 export interface FuelRecord {
@@ -95,13 +103,15 @@ export interface FuelRecord {
   vehicleId: string;
   driverId: string;
   date: string;
-  liters: number; // عدد اللترات
-  costPerLiter: number; // سعر اللتر
-  totalCost: number; // المبلغ الإجمالي
-  odometerReading: number; // قراءة العداد
-  stationName: string; // اسم المحطة
+  liters: number;
+  costPerLiter: number;
+  totalCost: number;
+  odometerReading: number;
+  stationName: string;
   notes?: string;
-  paymentStatus?: 'paid' | 'pending'; // حالة الدفع: مدفوعة أو معلقة
+  paymentStatus?: 'paid' | 'pending';
+  created_by?: string;
+  updated_by?: string;
 }
 
 export interface ExpenseRecord {
@@ -114,16 +124,18 @@ export interface ExpenseRecord {
   date: string;
   description?: string;
   receiptNumber?: string;
-  paymentStatus?: 'paid' | 'pending'; // حالة الدفع: مدفوعة أو معلقة
+  paymentStatus?: 'paid' | 'pending';
+  created_by?: string;
+  updated_by?: string;
 }
 
 export interface InspectionChecklist {
-  noScratches?: boolean; // خلو السيارة من الخدوش والصدمات
-  spareTire?: boolean; // الإطار الاحتياطي ورافعة العجلات
-  fireExtinguisher?: boolean; // طفاية الحريق
-  warningTriangle?: boolean; // مثلث السلامة والإسعافات
-  registrationDoc?: boolean; // وجود رخصة سير المركبة/الاستمارة
-  cleanliness?: boolean; // نظافة الهيكل والمقصورة
+  noScratches?: boolean;
+  spareTire?: boolean;
+  fireExtinguisher?: boolean;
+  warningTriangle?: boolean;
+  registrationDoc?: boolean;
+  cleanliness?: boolean;
 }
 
 export interface CheckoutSession {
@@ -133,38 +145,35 @@ export interface CheckoutSession {
   driverId: string;
   purpose: 'official' | 'client_delivery' | 'maintenance' | 'quick_task' | 'personal_temporary' | 'other';
   purposeCustom?: string;
-  
-  // Checkout Info
   checkoutTime: string;
   checkoutOdometer: number;
   checkoutFuelLevel: '100%' | '75%' | '50%' | '25%' | '10%';
-  checkoutSignature: string; // Base64 Canvas Image
+  checkoutSignature: string;
   checkoutNotes?: string;
   checkoutChecklist?: InspectionChecklist;
-  
-  // Return Info
   returnTime?: string;
   returnOdometer?: number;
   returnFuelLevel?: '100%' | '75%' | '50%' | '25%' | '10%';
-  returnSignature?: string; // Base64 Canvas Image
+  returnSignature?: string;
   returnNotes?: string;
   returnChecklist?: InspectionChecklist;
-  
   status: 'active' | 'completed';
+  created_by?: string;
+  updated_by?: string;
 }
 
 export interface CompanySettings {
   companyId?: string;
-  companyName: string; // اسم الشركة
-  tagline: string; // النشاط / الشعار النصي
-  logoUrl: string; // رابط اللوجو أو base64
-  phone: string; // رقم الهاتف/الواتساب
-  email: string; // البريد الإلكتروني
-  address: string; // العنوان
-  commercialRegNumber: string; // السجل التجاري / الرقم الضريبي
-  printHeaderNote: string; // ملاحظة هيدر التقارير
-  printFooterNote: string; // ملاحظة فوتر التقارير والتوقيعات
-  currency?: string; // العملة المعتمدة للنظام (SAR, USD, AED, EUR, etc.)
+  companyName: string;
+  tagline: string;
+  logoUrl: string;
+  phone: string;
+  email: string;
+  address: string;
+  commercialRegNumber: string;
+  printHeaderNote: string;
+  printFooterNote: string;
+  currency?: string;
 }
 
 export interface CompanyDocument {
@@ -173,9 +182,23 @@ export interface CompanyDocument {
   title: string;
   type: 'contract' | 'insurance' | 'license' | 'commercial_reg' | 'other';
   linkedEntityType: 'vehicle' | 'driver' | 'company';
-  linkedEntityId?: string; // vehicleId or driverId
+  linkedEntityId?: string;
   uploadDate: string;
-  documentImageBase64: string; // scanned photo
+  documentImageBase64: string;
   notes?: string;
   expiryDate?: string;
+  created_by?: string;
+  updated_by?: string;
+}
+
+// ============================================================
+// واجهة الملف الشخصي للمستخدم (Profile)
+// ============================================================
+export interface Profile {
+  id: string;
+  email: string;
+  full_name?: string;
+  role: 'admin' | 'manager' | 'user' | 'disabled';
+  created_at: string;
+  updated_at: string;
 }
