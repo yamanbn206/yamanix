@@ -25,7 +25,22 @@ import {
   RotateCcw
 } from 'lucide-react';
 
-// ... (نفس الواجهات السابقة)
+interface FuelExpensesViewProps {
+  fuel: FuelRecord[];
+  expenses: ExpenseRecord[];
+  vehicles: Vehicle[];
+  drivers: Driver[];
+  checkouts?: CheckoutSession[];
+  garages?: Garage[];
+  maintenance?: MaintenanceRecord[];
+  settings?: CompanySettings;
+  onSaveFuel: (record: FuelRecord) => void;
+  onDeleteFuel: (id: string) => void;
+  onSaveExpense: (record: ExpenseRecord) => void;
+  onDeleteExpense: (id: string) => void;
+  onSaveMaintenance?: (record: MaintenanceRecord) => void;
+  lang?: Language;
+}
 
 export const FuelExpensesView: React.FC<FuelExpensesViewProps> = ({
   fuel,
@@ -48,7 +63,291 @@ export const FuelExpensesView: React.FC<FuelExpensesViewProps> = ({
   const [showFuelModal, setShowFuelModal] = useState(false);
   const [showExpenseModal, setShowExpenseModal] = useState(false);
 
-  // ... (بقية الـ state والدوال المساعدة كما هي)
+  const [autoFilledCheckout, setAutoFilledCheckout] = useState<{
+    sessionId?: string;
+    driverName?: string;
+    vehicleName?: string;
+    plateNumber?: string;
+    odometer?: number;
+    checkoutTime?: string;
+    source: 'checkout' | 'assigned';
+  } | null>(null);
+
+  const [pendingCategoryFilter, setPendingCategoryFilter] = useState<'all' | 'fuel' | 'maintenance' | 'expenses'>('all');
+
+  // New Fuel Form State
+  const [fuelVehicleId, setFuelVehicleId] = useState('');
+  const [fuelDriverId, setFuelDriverId] = useState('');
+  const [fuelDate, setFuelDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fuelLiters, setFuelLiters] = useState<number>(50);
+  const [fuelCostPerLiter, setFuelCostPerLiter] = useState<number>(2.33);
+  const [fuelTotalCost, setFuelTotalCost] = useState<number>(116.5);
+  const [fuelOdometer, setFuelOdometer] = useState<number>(0);
+  const [fuelStation, setFuelStation] = useState('');
+  const [fuelPaymentStatus, setFuelPaymentStatus] = useState<'paid' | 'pending'>('paid');
+
+  const getLatestCheckoutForDriver = (driverId: string) => {
+    if (!checkouts || checkouts.length === 0 || !driverId) return null;
+    const driverCheckouts = checkouts.filter(c => c.driverId === driverId);
+    if (driverCheckouts.length === 0) return null;
+    return [...driverCheckouts].sort((a, b) => 
+      new Date(b.checkoutTime).getTime() - new Date(a.checkoutTime).getTime()
+    )[0];
+  };
+
+  const handleDriverChangeInModal = (driverId: string) => {
+    setFuelDriverId(driverId);
+    if (!driverId) {
+      setAutoFilledCheckout(null);
+      return;
+    }
+
+    const latestCheckout = getLatestCheckoutForDriver(driverId);
+    const driver = drivers.find(d => d.id === driverId);
+
+    if (latestCheckout) {
+      const veh = vehicles.find(v => v.id === latestCheckout.vehicleId);
+      const odo = latestCheckout.returnOdometer ?? latestCheckout.checkoutOdometer ?? veh?.mileage ?? 0;
+      
+      setFuelVehicleId(latestCheckout.vehicleId);
+      setFuelOdometer(odo);
+      setAutoFilledCheckout({
+        sessionId: latestCheckout.id,
+        driverName: driver?.name || '',
+        vehicleName: veh ? `${veh.make} ${veh.model}` : '',
+        plateNumber: veh?.plateNumber || '',
+        odometer: odo,
+        checkoutTime: latestCheckout.checkoutTime,
+        source: 'checkout'
+      });
+    } else {
+      const assignedVeh = vehicles.find(v => v.assignedDriverId === driverId);
+      if (assignedVeh) {
+        setFuelVehicleId(assignedVeh.id);
+        setFuelOdometer(assignedVeh.mileage);
+        setAutoFilledCheckout({
+          driverName: driver?.name || '',
+          vehicleName: `${assignedVeh.make} ${assignedVeh.model}`,
+          plateNumber: assignedVeh.plateNumber,
+          odometer: assignedVeh.mileage,
+          source: 'assigned'
+        });
+      } else {
+        setAutoFilledCheckout(null);
+      }
+    }
+  };
+
+  const handleOpenQuickAddModal = (driverId?: string) => {
+    setShowFuelModal(true);
+    if (driverId) {
+      handleDriverChangeInModal(driverId);
+    } else if (drivers.length > 0) {
+      const driverWithCheckout = drivers.find(d => getLatestCheckoutForDriver(d.id));
+      if (driverWithCheckout) {
+        handleDriverChangeInModal(driverWithCheckout.id);
+      } else if (drivers[0]) {
+        handleDriverChangeInModal(drivers[0].id);
+      }
+    }
+  };
+
+  // New Expense Form State
+  const [expVehicleId, setExpVehicleId] = useState('');
+  const [expType, setExpType] = useState<ExpenseRecord['type']>('registration_renewal');
+  const [expTitle, setExpTitle] = useState('Registration Renewal');
+  const [expAmount, setExpAmount] = useState<number>(300);
+  const [expDate, setExpDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [expReceipt, setExpReceipt] = useState('');
+  const [expPaymentStatus, setExpPaymentStatus] = useState<'paid' | 'pending'>('paid');
+
+  const handleLitersOrRateChange = (liters: number, rate: number) => {
+    setFuelLiters(liters);
+    setFuelCostPerLiter(rate);
+    setFuelTotalCost(Number((liters * rate).toFixed(2)));
+  };
+
+  const handleCreateFuel = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fuelVehicleId || !fuelDriverId) {
+      alert(isAr ? 'يرجى تحديد المركبة والسائق' : 'Please select vehicle and driver');
+      return;
+    }
+
+    const record: FuelRecord = {
+      id: `f-${Date.now().toString().slice(-5)}`,
+      vehicleId: fuelVehicleId,
+      driverId: fuelDriverId,
+      date: fuelDate,
+      liters: Number(fuelLiters),
+      costPerLiter: Number(fuelCostPerLiter),
+      totalCost: Number(fuelTotalCost),
+      odometerReading: Number(fuelOdometer),
+      stationName: fuelStation,
+      paymentStatus: fuelPaymentStatus
+    };
+
+    onSaveFuel(record);
+    setShowFuelModal(false);
+  };
+
+  const handleCreateExpense = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!expVehicleId || !expAmount) {
+      alert(isAr ? 'يرجى تحديد المركبة والمبلغ' : 'Please select vehicle and amount');
+      return;
+    }
+
+    const record: ExpenseRecord = {
+      id: `e-${Date.now().toString().slice(-5)}`,
+      vehicleId: expVehicleId,
+      type: expType,
+      title: expTitle,
+      amount: Number(expAmount),
+      date: expDate,
+      receiptNumber: expReceipt,
+      paymentStatus: expPaymentStatus
+    };
+
+    onSaveExpense(record);
+    setShowExpenseModal(false);
+  };
+
+  const toggleFuelStatus = (record: FuelRecord) => {
+    const updated: FuelRecord = {
+      ...record,
+      paymentStatus: record.paymentStatus === 'pending' ? 'paid' : 'pending'
+    };
+    onSaveFuel(updated);
+  };
+
+  const toggleExpenseStatus = (record: ExpenseRecord) => {
+    const updated: ExpenseRecord = {
+      ...record,
+      paymentStatus: record.paymentStatus === 'pending' ? 'paid' : 'pending'
+    };
+    onSaveExpense(updated);
+  };
+
+  const toggleMaintenanceStatus = (record: MaintenanceRecord) => {
+    if (!onSaveMaintenance) return;
+    const updated: MaintenanceRecord = {
+      ...record,
+      status: record.status === 'pending_payment' ? 'completed' : 'pending_payment'
+    };
+    onSaveMaintenance(updated);
+  };
+
+  const pendingFuel = fuel.filter(f => f.paymentStatus === 'pending');
+  const pendingMaintenance = maintenance.filter(m => m.status === 'pending_payment');
+  const pendingExpenses = expenses.filter(e => e.paymentStatus === 'pending');
+
+  const totalPendingFuelAmount = pendingFuel.reduce((sum, f) => sum + f.totalCost, 0);
+  const totalPendingMaintenanceAmount = pendingMaintenance.reduce((sum, m) => sum + m.totalCost, 0);
+  const totalPendingExpenseAmount = pendingExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+  const totalPendingAll = totalPendingFuelAmount + totalPendingMaintenanceAmount + totalPendingExpenseAmount;
+  const totalPendingCount = pendingFuel.length + pendingMaintenance.length + pendingExpenses.length;
+
+  const stationsDue = React.useMemo(() => {
+    const map: Record<string, { stationName: string; count: number; totalAmount: number }> = {};
+    pendingFuel.forEach(f => {
+      const key = f.stationName || (isAr ? 'محطة غير محددة' : 'Unnamed Station');
+      if (!map[key]) {
+        map[key] = { stationName: key, count: 0, totalAmount: 0 };
+      }
+      map[key].count += 1;
+      map[key].totalAmount += f.totalCost;
+    });
+    return Object.values(map);
+  }, [pendingFuel, isAr]);
+
+  const garagesDue = React.useMemo(() => {
+    const map: Record<string, { garageName: string; contactPerson?: string; phone?: string; count: number; totalAmount: number }> = {};
+    pendingMaintenance.forEach(m => {
+      const g = garages.find(gar => gar.id === m.garageId);
+      const name = g ? g.name : (isAr ? 'ورشة صيانة' : 'Workshop');
+      const key = m.garageId || name;
+
+      if (!map[key]) {
+        map[key] = {
+          garageName: name,
+          contactPerson: g?.contactPerson,
+          phone: g?.phone,
+          count: 0,
+          totalAmount: 0
+        };
+      }
+      map[key].count += 1;
+      map[key].totalAmount += m.totalCost;
+    });
+    return Object.values(map);
+  }, [pendingMaintenance, garages, isAr]);
+
+  const allPendingList = React.useMemo(() => {
+    const list: Array<{
+      id: string;
+      category: 'fuel' | 'maintenance' | 'expenses';
+      invoiceNo: string;
+      date: string;
+      vendorName: string;
+      vehicleId: string;
+      description: string;
+      amount: number;
+      originalRecord: any;
+    }> = [];
+
+    if (pendingCategoryFilter === 'all' || pendingCategoryFilter === 'fuel') {
+      pendingFuel.forEach(f => {
+        list.push({
+          id: f.id,
+          category: 'fuel',
+          invoiceNo: f.id,
+          date: f.date,
+          vendorName: f.stationName || (isAr ? 'محطة وقود' : 'Fuel Station'),
+          vehicleId: f.vehicleId,
+          description: `${isAr ? 'تعبئة وقود' : 'Fuel fill'} (${f.liters} L)`,
+          amount: f.totalCost,
+          originalRecord: f
+        });
+      });
+    }
+
+    if (pendingCategoryFilter === 'all' || pendingCategoryFilter === 'maintenance') {
+      pendingMaintenance.forEach(m => {
+        const g = garages.find(gar => gar.id === m.garageId);
+        list.push({
+          id: m.id,
+          category: 'maintenance',
+          invoiceNo: m.invoiceNumber || m.id,
+          date: m.date,
+          vendorName: g?.name || (isAr ? 'ورشة صيانة' : 'Workshop'),
+          vehicleId: m.vehicleId,
+          description: m.description,
+          amount: m.totalCost,
+          originalRecord: m
+        });
+      });
+    }
+
+    if (pendingCategoryFilter === 'all' || pendingCategoryFilter === 'expenses') {
+      pendingExpenses.forEach(e => {
+        list.push({
+          id: e.id,
+          category: 'expenses',
+          invoiceNo: e.receiptNumber || e.id,
+          date: e.date,
+          vendorName: (isAr ? 'الجهة الرسمية / الرسوم' : 'Official / Fees'),
+          vehicleId: e.vehicleId,
+          description: e.title,
+          amount: e.amount,
+          originalRecord: e
+        });
+      });
+    }
+
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [pendingCategoryFilter, pendingFuel, pendingMaintenance, pendingExpenses, garages, isAr]);
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
