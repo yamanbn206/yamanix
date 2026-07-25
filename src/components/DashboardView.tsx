@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Vehicle, Driver, MaintenanceRecord, FuelRecord, CheckoutSession, CompanySettings } from '../types';
+import { Language, t } from '../lib/i18n';
+import { formatCurrency, getCurrencySymbol } from '../lib/currency';
 import { 
   Car, 
   Users, 
@@ -42,9 +44,6 @@ import {
   Legend
 } from 'recharts';
 
-import { Language } from '../lib/i18n';
-import { formatCurrency, getCurrencySymbol } from '../lib/currency';
-
 interface DashboardViewProps {
   vehicles: Vehicle[];
   drivers: Driver[];
@@ -66,6 +65,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateTab,
   lang = 'en'
 }) => {
+  const isAr = lang === 'ar';
   const activeCheckouts = checkouts.filter(c => c.status === 'active');
   const inMaintenanceVehicles = vehicles.filter(v => v.status === 'maintenance');
   const availableVehicles = vehicles.filter(v => v.status === 'available');
@@ -96,18 +96,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return exp <= next30Days;
   });
 
-  const isAr = lang === 'ar';
-
   const totalExpiries = expiringLicenses.length + expiringInsurances.length + expiringDriverLicenses.length;
 
-  // 1. Calculate Monthly Fuel Expenses Data for Recharts
-  const monthNamesArabic: Record<string, string> = {
-    '01': 'يناير', '02': 'فبراير', '03': 'مارس', '04': 'أبريل',
-    '05': 'مايو', '06': 'يونيو', '07': 'يوليو', '08': 'أغسطس',
-    '09': 'سبتمبر', '10': 'أكتوبر', '11': 'نوفمبر', '12': 'ديسمبر'
-  };
-
-  const monthNamesEnglish: Record<string, string> = {
+  // Monthly Fuel Data
+  const monthNames: Record<string, string> = {
     '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr',
     '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Aug',
     '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
@@ -117,9 +109,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   
   fuel.forEach(f => {
     if (!f.date) return;
-    const yearMonth = f.date.slice(0, 7); // e.g. "2026-07"
+    const yearMonth = f.date.slice(0, 7);
     const [year, month] = yearMonth.split('-');
-    const monthLabel = `${isAr ? (monthNamesArabic[month] || month) : (monthNamesEnglish[month] || month)} ${year}`;
+    const monthLabel = `${monthNames[month] || month} ${year}`;
 
     if (!monthlyFuelMap[yearMonth]) {
       monthlyFuelMap[yearMonth] = {
@@ -141,16 +133,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       totalLiters: Math.round(item.totalLiters)
     }));
 
-  // 2. Calculate Fuel Consumption Rates & Spend per Vehicle for Recharts
+  // Vehicle Fuel Data
   const vehicleFuelMap: Record<string, { vehicleName: string; plateNumber: string; totalCost: number; totalLiters: number; count: number; fuelType: string }> = {};
   
   fuel.forEach(f => {
     const v = vehicles.find(veh => veh.id === f.vehicleId);
     const key = f.vehicleId;
-    const typeLabel = v?.fuelType === 'diesel' ? (isAr ? 'ديزل' : 'Diesel') : v?.fuelType === '95' ? (isAr ? 'بنزين 95' : 'Petrol 95') : (isAr ? 'بنزين 91' : 'Petrol 91');
+    const typeLabel = v?.fuelType === 'diesel' ? 'Diesel' : v?.fuelType === '95' ? 'Petrol 95' : 'Petrol 91';
     if (!vehicleFuelMap[key]) {
       vehicleFuelMap[key] = {
-        vehicleName: v ? `${v.make} ${v.model}` : (isAr ? 'مركبة' : 'Vehicle'),
+        vehicleName: v ? `${v.make} ${v.model}` : 'Vehicle',
         plateNumber: v ? v.plateNumber : '',
         totalCost: 0,
         totalLiters: 0,
@@ -172,20 +164,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       avgLitersPerFill: Math.round(item.totalLiters / (item.count || 1))
     }));
 
-  // 3. Fuel Distribution by Fuel Type
+  // Fuel Type Distribution
   const fuelTypeMap: Record<string, number> = {};
   fuel.forEach(f => {
     const v = vehicles.find(veh => veh.id === f.vehicleId);
-    const typeLabel = v?.fuelType === 'diesel' ? (isAr ? 'ديزل' : 'Diesel') : v?.fuelType === '95' ? (isAr ? 'بنزين 95' : 'Petrol 95') : (isAr ? 'بنزين 91' : 'Petrol 91');
+    const typeLabel = v?.fuelType === 'diesel' ? 'Diesel' : v?.fuelType === '95' ? 'Petrol 95' : 'Petrol 91';
     fuelTypeMap[typeLabel] = (fuelTypeMap[typeLabel] || 0) + f.totalCost;
   });
 
   const fuelTypeColors: Record<string, string> = {
-    'ديزل': '#f59e0b',
     'Diesel': '#f59e0b',
-    'بنزين 91': '#10b981',
     'Petrol 91': '#10b981',
-    'بنزين 95': '#3b82f6',
     'Petrol 95': '#3b82f6'
   };
 
@@ -195,14 +184,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     color: fuelTypeColors[name] || '#cbb26a'
   }));
 
-  // Calculate top faulty vehicles (by maintenance frequency & cost)
+  // Top faulty vehicles
   const vehicleCostsMap: Record<string, { name: string; plate: string; count: number; cost: number }> = {};
   maintenance.forEach(m => {
     const v = vehicles.find(veh => veh.id === m.vehicleId);
     const key = m.vehicleId;
     if (!vehicleCostsMap[key]) {
       vehicleCostsMap[key] = {
-        name: v ? `${v.make} ${v.model}` : (isAr ? 'مركبة غير معروفة' : 'Unknown Vehicle'),
+        name: v ? `${v.make} ${v.model}` : 'Unknown Vehicle',
         plate: v ? v.plateNumber : '',
         count: 0,
         cost: 0
@@ -216,7 +205,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     .sort((a, b) => b.cost - a.cost)
     .slice(0, 5);
 
-  // Calculate top replaced spare parts
+  // Top replaced parts
   const partsMap: Record<string, { partName: string; totalQty: number; totalSpend: number }> = {};
   maintenance.forEach(m => {
     m.parts.forEach(p => {
@@ -233,17 +222,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     .sort((a, b) => b.totalSpend - a.totalSpend)
     .slice(0, 5);
 
-  // Total expenses breakdown
+  // Total expenses
   const totalMaintenanceCost = maintenance.reduce((sum, m) => sum + m.totalCost, 0);
   const totalFuelCost = fuel.reduce((sum, f) => sum + f.totalCost, 0);
   const totalFuelLiters = fuel.reduce((sum, f) => sum + f.liters, 0);
 
-  // Predictive Maintenance Linear Regression Formula
+  // Predictive Maintenance
   const predictiveMaintenanceData = vehicles.map(v => {
-    // Collect historical odometer & date points for linear regression
     const points: { xDays: number; yKm: number }[] = [];
 
-    // Maintenance records
     maintenance
       .filter(m => m.vehicleId === v.id && m.odometer > 0 && m.date)
       .forEach(m => {
@@ -253,7 +240,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }
       });
 
-    // Fuel records
     fuel
       .filter(f => f.vehicleId === v.id && f.odometer > 0 && f.date)
       .forEach(f => {
@@ -263,7 +249,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }
       });
 
-    // Checkouts
     checkouts
       .filter(c => c.vehicleId === v.id && c.checkoutOdometer > 0 && c.checkoutTime)
       .forEach(c => {
@@ -273,15 +258,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         }
       });
 
-    // Add current mileage point
     const today = new Date();
     points.push({ xDays: today.getTime() / (1000 * 3600 * 24), yKm: v.mileage });
 
-    // Deduplicate & sort by xDays
     points.sort((a, b) => a.xDays - b.xDays);
 
-    let kmPerDay = 45; // Default average daily accumulation rate if insufficient data
-    let confidence = 'تقديري';
+    let kmPerDay = 45;
+    let confidence = 'Estimate';
 
     if (points.length >= 2) {
       const minX = points[0].xDays;
@@ -301,12 +284,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         const slope = (n * sumXY - sumX * sumY) / denom;
         if (slope > 2 && slope < 800) {
           kmPerDay = Math.round(slope * 10) / 10;
-          confidence = 'دقيق (انحدار خطي y = mx + c)';
+          confidence = 'Linear Regression';
         }
       }
     }
 
-    // Target Next Service Odometer
     let targetKm = v.nextServiceMileage;
     if (!targetKm || targetKm <= v.mileage) {
       targetKm = Math.ceil((v.mileage + 1) / 10000) * 10000;
@@ -359,11 +341,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   ];
 
   const CARD_NAMES: Record<DashboardCardId, string> = {
-    kpi_metrics: '1. المؤشرات الإحصائية السريعة للأسطول',
-    predictive_maintenance: '2. الصيانة التنبؤية بالذكاء الاصطناعي',
-    fuel_analytics: '3. تحليلات ورسوم استهلاك الوقود',
-    maintenance_and_parts: '4. تحليلات الصيانة وأكثر القطع استبدالاً',
-    recent_checkouts: '5. سجل وحالة حركة المركبات الحالية'
+    kpi_metrics: t('quickStats', lang),
+    predictive_maintenance: t('predictiveMaintenance', lang),
+    fuel_analytics: 'Fuel Analytics Charts',
+    maintenance_and_parts: 'Maintenance & Parts Analysis',
+    recent_checkouts: 'Recent Checkout Activity'
   };
 
   const [cardOrder, setCardOrder] = useState<DashboardCardId[]>(() => {
@@ -467,7 +449,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div>
             <h1 className="text-2xl font-bold text-white tracking-wide">{settings.companyName}</h1>
             <p className="text-[#cbb26a] text-sm font-medium">{settings.tagline}</p>
-            <p className="text-gray-400 text-xs mt-1">لوحة التحليلات المركزية ومتابعة الحركة اليومية لأسطول السيارات</p>
+            <p className="text-gray-400 text-xs mt-1">{isAr ? 'لوحة التحليلات المركزية ومتابعة الحركة اليومية لأسطول السيارات' : 'Central analytics dashboard and daily fleet activity monitoring'}</p>
           </div>
         </div>
 
@@ -480,31 +462,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 ? 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-400 shadow-md animate-pulse'
                 : 'bg-gray-800/80 hover:bg-gray-700 text-gray-200 border-gray-700 shadow-sm'
             }`}
-            title="تخصيص ترتيب بطاقات اللوحة عن طريق السحب والإفلات"
+            title={isAr ? 'تخصيص ترتيب بطاقات اللوحة عن طريق السحب والإفلات' : 'Drag and drop to reorder dashboard cards'}
           >
             <Move className="w-4 h-4 text-[#cbb26a]" />
-            {isReorderMode ? 'إنهاء الترتيب' : 'سحب وإعادة ترتيب البطاقات'}
+            {isReorderMode ? (isAr ? 'إنهاء الترتيب' : 'Done Reordering') : (isAr ? 'سحب وإعادة ترتيب البطاقات' : 'Reorder Cards')}
           </button>
           <button
             onClick={() => onNavigateTab('checkout')}
             className="px-5 py-2.5 bg-[#cbb26a] hover:bg-[#b89f57] text-black rounded-xl font-bold text-sm shadow-md transition flex items-center gap-2"
           >
             <KeyRound className="w-4 h-4 text-black" />
-            استلام / تسليم سيارة
+            {isAr ? 'استلام / تسليم سيارة' : 'Checkout / Return'}
           </button>
           <button
             onClick={() => onNavigateTab('fuel')}
             className="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2"
           >
             <Fuel className="w-4 h-4 text-amber-400" />
-            سجلات الوقود
+            {isAr ? 'سجلات الوقود' : 'Fuel Logs'}
           </button>
           <button
             onClick={() => onNavigateTab('maintenance')}
             className="px-4 py-2.5 bg-gray-800/80 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-xl font-bold text-sm shadow-sm transition flex items-center gap-2"
           >
             <Wrench className="w-4 h-4 text-[#cbb26a]" />
-            فواتير الصيانة
+            {isAr ? 'فواتير الصيانة' : 'Maintenance Invoices'}
           </button>
         </div>
       </div>
@@ -515,14 +497,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#cbb26a] animate-ping" />
             <h2 className="text-xs font-extrabold uppercase tracking-wider text-gray-300 flex items-center gap-2">
-              {isAr ? 'ملخص المؤشرات المباشرة للأسطول (Quick Stats)' : 'Fleet Live Quick Stats'}
+              {t('quickStats', lang)}
               <span className="px-2 py-0.5 bg-[#cbb26a]/10 text-[#cbb26a] border border-[#cbb26a]/20 rounded-full text-[10px] font-mono font-bold">
-                Live
+                {t('live', lang)}
               </span>
             </h2>
           </div>
           <span className="text-[11px] text-gray-400 font-mono">
-            {isAr ? 'محدث تلقائياً' : 'Auto-updated'}
+            {t('autoUpdated', lang)}
           </span>
         </div>
 
@@ -534,7 +516,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 group-hover:text-gray-200 transition">
-                {isAr ? 'إجمالي السيارات النشطة' : 'Total Active Vehicles'}
+                {t('totalVehicles', lang)}
               </span>
               <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 group-hover:scale-110 transition">
                 <Car className="w-4 h-4" />
@@ -563,7 +545,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 group-hover:text-gray-200 transition">
-                {isAr ? 'السيارات قيد الصيانة' : 'Vehicles in Maintenance'}
+                {t('vehiclesInMaintenance', lang)}
               </span>
               <div className="p-2 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 group-hover:scale-110 transition">
                 <Wrench className="w-4 h-4" />
@@ -592,7 +574,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 group-hover:text-gray-200 transition">
-                {isAr ? 'سائقون برخص قريبة الانتهاء' : 'Drivers w/ Expiring Licenses'}
+                {t('driversWithExpiringLicenses', lang)}
               </span>
               <div className="p-2 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 group-hover:scale-110 transition">
                 <Users className="w-4 h-4" />
@@ -621,7 +603,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           >
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 group-hover:text-gray-200 transition">
-                {isAr ? 'مصاريف وقود الشهر الحالي' : 'Total Monthly Fuel Expenses'}
+                {t('totalMonthlyFuelExpenses', lang)}
               </span>
               <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 group-hover:scale-110 transition">
                 <Fuel className="w-4 h-4" />
@@ -654,10 +636,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div>
               <p className="font-bold text-amber-300 text-sm">
-                تنبيه هام: هناك ({totalExpiries}) رخص قيادة، رخص سير، أو وثائق تأمين قريبة الانتهاء!
+                {isAr
+                  ? `تنبيه هام: هناك (${totalExpiries}) رخص قيادة، رخص سير، أو وثائق تأمين قريبة الانتهاء!`
+                  : `Important Alert: There are (${totalExpiries}) driver licenses, vehicle registrations, or insurance policies expiring soon!`}
               </p>
               <p className="text-xs text-gray-400">
-                انقر هنا لعرض التقرير التفصيلي للتجديدات ومواعيد الانتهاء لتجنب المخالفات المرورية.
+                {isAr
+                  ? 'انقر هنا لعرض التقرير التفصيلي للتجديدات ومواعيد الانتهاء لتجنب المخالفات المرورية.'
+                  : 'Click here to view detailed renewal and expiry report to avoid traffic violations.'}
               </p>
             </div>
           </div>
@@ -674,13 +660,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div>
               <p className="text-sm font-bold text-white flex items-center gap-2">
-                وضع إعادة ترتيب بطاقات لوحة التحكم (Drag and Drop Active)
+                {isAr ? 'وضع إعادة ترتيب بطاقات لوحة التحكم (Drag and Drop Active)' : 'Dashboard Card Reordering Mode (Drag and Drop Active)'}
                 <span className="text-[10px] bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 px-2 py-0.5 rounded-full font-bold">
-                  تفاعلي
+                  {isAr ? 'تفاعلي' : 'Interactive'}
                 </span>
               </p>
               <p className="text-xs text-indigo-200/80 mt-0.5">
-                يمكنك الآن سحب أي بطاقة تحليلات من أيقونة المقبض (⋮⋮) وإسقاطها في المكان المناسب، أو استخدام الأسهم (▲▼) للتحريك.
+                {isAr
+                  ? 'يمكنك الآن سحب أي بطاقة تحليلات من أيقونة المقبض (⋮⋮) وإسقاطها في المكان المناسب، أو استخدام الأسهم (▲▼) للتحريك.'
+                  : 'Drag any card by the handle icon (⋮⋮) or use the arrows (▲▼) to reorder.'}
               </p>
             </div>
           </div>
@@ -691,14 +679,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 font-bold text-xs rounded-xl transition flex items-center gap-1.5"
             >
               <RotateCcw className="w-3.5 h-3.5 text-[#cbb26a]" />
-              الترتيب الافتراضي
+              {isAr ? 'الترتيب الافتراضي' : 'Default Order'}
             </button>
             <button
               type="button"
               onClick={() => setIsReorderMode(false)}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl transition shadow"
             >
-              حفظ وإنهاء
+              {isAr ? 'حفظ وإنهاء' : 'Save & Done'}
             </button>
           </div>
         </div>
@@ -729,7 +717,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div className="flex items-center gap-2.5">
                   <div 
                     className="cursor-grab active:cursor-grabbing p-1.5 hover:bg-white/10 rounded text-gray-400 hover:text-white transition flex items-center gap-1"
-                    title="انقر واسحب لإعادة ترتيب هذا القسم في لوحة التحكم"
+                    title={isAr ? 'انقر واسحب لإعادة ترتيب هذا القسم في لوحة التحكم' : 'Drag to reorder this section'}
                   >
                     <GripVertical className="w-4 h-4 text-[#cbb26a]" />
                     <span className="text-[11px] font-mono text-[#cbb26a] font-bold">#{index + 1}</span>
@@ -739,14 +727,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                 <div className="flex items-center gap-1">
                   <span className="text-[10px] text-gray-500 hidden sm:inline-block ml-2">
-                    (اسحب وأسقط أو استخدم الأسهم)
+                    {isAr ? '(اسحب وأسقط أو استخدم الأسهم)' : '(Drag & drop or use arrows)'}
                   </span>
                   <button
                     type="button"
                     onClick={() => moveCard(cardId, 'up')}
                     disabled={index === 0}
                     className="p-1 hover:bg-white/10 rounded text-gray-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
-                    title="تحريك للأعلى"
+                    title={isAr ? 'تحريك للأعلى' : 'Move Up'}
                   >
                     <ArrowUp className="w-4 h-4" />
                   </button>
@@ -755,7 +743,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     onClick={() => moveCard(cardId, 'down')}
                     disabled={index === cardOrder.length - 1}
                     className="p-1 hover:bg-white/10 rounded text-gray-300 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition"
-                    title="تحريك للأسفل"
+                    title={isAr ? 'تحريك للأسفل' : 'Move Down'}
                   >
                     <ArrowDown className="w-4 h-4" />
                   </button>
@@ -773,20 +761,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       className="bg-[#0a0b0d] border border-gray-800 hover:border-[#cbb26a]/40 rounded-2xl p-5 shadow-sm transition cursor-pointer space-y-3"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">إجمالي الأسطول</span>
+                        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">{isAr ? 'إجمالي الأسطول' : 'Total Fleet'}</span>
                         <div className="p-2.5 bg-[#cbb26a]/10 text-[#cbb26a] rounded-xl border border-[#cbb26a]/20">
                           <Car className="w-5 h-5" />
                         </div>
                       </div>
                       <div>
-                        <div className="text-3xl font-light text-white">{vehicles.length} <span className="text-sm font-normal text-gray-400">مركبة</span></div>
+                        <div className="text-3xl font-light text-white">{vehicles.length} <span className="text-sm font-normal text-gray-400">{isAr ? 'مركبة' : 'vehicles'}</span></div>
                         <div className="w-full bg-gray-800 h-1 mt-2.5 rounded-full overflow-hidden">
                           <div className="bg-[#cbb26a] h-full rounded-full" style={{ width: `${Math.min(100, (availableVehicles.length / (vehicles.length || 1)) * 100)}%` }}></div>
                         </div>
                         <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-                          <span className="text-emerald-400 font-semibold">{availableVehicles.length} جاهزة</span> • 
-                          <span className="text-[#cbb26a] font-semibold">{activeCheckouts.length} مستلمة</span> • 
-                          <span className="text-rose-400 font-semibold">{inMaintenanceVehicles.length} بالصيانة</span>
+                          <span className="text-emerald-400 font-semibold">{availableVehicles.length} {isAr ? 'جاهزة' : 'available'}</span> • 
+                          <span className="text-[#cbb26a] font-semibold">{activeCheckouts.length} {isAr ? 'مستلمة' : 'checked out'}</span> • 
+                          <span className="text-rose-400 font-semibold">{inMaintenanceVehicles.length} {isAr ? 'بالصيانة' : 'in maintenance'}</span>
                         </div>
                       </div>
                     </div>
@@ -797,16 +785,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       className="bg-[#0a0b0d] border border-gray-800 hover:border-[#cbb26a]/40 rounded-2xl p-5 shadow-sm transition cursor-pointer space-y-3"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">السائقون والموظفون</span>
+                        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">{isAr ? 'السائقون والموظفون' : 'Drivers'}</span>
                         <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl border border-emerald-500/20">
                           <Users className="w-5 h-5" />
                         </div>
                       </div>
                       <div>
-                        <div className="text-3xl font-light text-white">{drivers.length} <span className="text-sm font-normal text-gray-400">سائق</span></div>
-                        <p className="text-xs text-gray-400 mt-2">
-                          جميع السائقين مسجلين برخص قيادة مخصصة
-                        </p>
+                        <div className="text-3xl font-light text-white">{drivers.length} <span className="text-sm font-normal text-gray-400">{isAr ? 'سائق' : 'drivers'}</span></div>
+                        <p className="text-xs text-gray-400 mt-2">{isAr ? 'جميع السائقين مسجلين برخص قيادة مخصصة' : 'All drivers registered with valid licenses'}</p>
                       </div>
                     </div>
 
@@ -816,16 +802,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       className="bg-[#0a0b0d] border border-gray-800 hover:border-[#cbb26a]/40 rounded-2xl p-5 shadow-sm transition cursor-pointer space-y-3"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">حركة الاستلام النشطة</span>
+                        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">{isAr ? 'حركة الاستلام النشطة' : 'Active Checkouts'}</span>
                         <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
                           <Clock className="w-5 h-5" />
                         </div>
                       </div>
                       <div>
-                        <div className="text-3xl font-light text-[#cbb26a]">{activeCheckouts.length} <span className="text-sm font-normal text-gray-400">سيارة بالخارج</span></div>
-                        <p className="text-xs text-gray-400 font-medium mt-2">
-                          مسجلة بالتاريخ والتوقيع الإلكتروني
-                        </p>
+                        <div className="text-3xl font-light text-[#cbb26a]">{activeCheckouts.length} <span className="text-sm font-normal text-gray-400">{isAr ? 'سيارة بالخارج' : 'vehicles out'}</span></div>
+                        <p className="text-xs text-gray-400 font-medium mt-2">{isAr ? 'مسجلة بالتاريخ والتوقيع الإلكتروني' : 'Recorded with timestamp and digital signature'}</p>
                       </div>
                     </div>
 
@@ -835,7 +819,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       className="bg-[#0a0b0d] border border-gray-800 hover:border-[#cbb26a]/40 rounded-2xl p-5 shadow-sm transition cursor-pointer space-y-3"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">إجمالي استهلاك الوقود</span>
+                        <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">{isAr ? 'إجمالي استهلاك الوقود' : 'Total Fuel Spend'}</span>
                         <div className="p-2.5 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/20">
                           <Fuel className="w-5 h-5" />
                         </div>
@@ -845,8 +829,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           {formatCurrency(totalFuelCost, settings?.currency, isAr ? 'ar' : 'en')}
                         </div>
                         <div className="flex items-center gap-2 mt-2 text-[11px] text-gray-400">
-                          <span>كمية اللترات: {totalFuelLiters.toLocaleString('ar-SA')} L</span> | 
-                          <span>السجلات: {fuel.length} تعبئة</span>
+                          <span>{isAr ? `كمية اللترات: ${totalFuelLiters.toLocaleString()} L` : `Total Liters: ${totalFuelLiters.toLocaleString()} L`}</span> | 
+                          <span>{isAr ? `السجلات: ${fuel.length} تعبئة` : `Records: ${fuel.length} fills`}</span>
                         </div>
                       </div>
                     </div>
@@ -863,13 +847,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         </div>
                         <div>
                           <h3 className="text-base font-bold text-white flex items-center gap-2">
-                            الصيانة التنبؤية بالذكاء الاصطناعي (Predictive Maintenance)
+                            {t('predictiveMaintenance', lang)}
                             <span className="text-[10px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-2.5 py-0.5 rounded-full font-mono dir-ltr">
                               y = mx + c (Linear Regression)
                             </span>
                           </h3>
                           <p className="text-xs text-gray-400 mt-0.5">
-                            حساب وتوقع موعد الصيانة القادمة المستهدفة لسيارات الأسطول بناءً على خوارزمية معدل تراكم الكيلومترات اليومية
+                            {isAr
+                              ? 'حساب وتوقع موعد الصيانة القادم المستهدفة لسيارات الأسطول بناءً على خوارزمية معدل تراكم الكيلومترات اليومية'
+                              : 'Calculates next estimated service date based on daily mileage accumulation rate using linear regression.'}
                           </p>
                         </div>
                       </div>
@@ -878,7 +864,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         onClick={() => onNavigateTab('maintenance')}
                         className="text-xs font-bold text-[#cbb26a] hover:underline flex items-center gap-1 shrink-0"
                       >
-                        الانتقال لإدارة الصيانة
+                        {isAr ? 'الانتقال لإدارة الصيانة' : 'Go to Maintenance'}
                         <ArrowUpRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -890,9 +876,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <div className="p-2 bg-red-500/10 text-red-400 rounded-lg">
                             <AlertTriangle className="w-4 h-4" />
                           </div>
-                          <span className="text-xs font-semibold text-gray-300">صيانة طارئة / متأخرة</span>
+                          <span className="text-xs font-semibold text-gray-300">{isAr ? 'صيانة طارئة / متأخرة' : 'Urgent / Overdue'}</span>
                         </div>
-                        <span className="text-base font-bold text-red-400">{urgentPredictiveCount} سيارات</span>
+                        <span className="text-base font-bold text-red-400">{urgentPredictiveCount} {isAr ? 'سيارات' : 'vehicles'}</span>
                       </div>
 
                       <div className="bg-[#0a0b0d] border border-gray-800 p-3.5 rounded-xl flex items-center justify-between">
@@ -900,9 +886,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg">
                             <Clock className="w-4 h-4" />
                           </div>
-                          <span className="text-xs font-semibold text-gray-300">موعد موصى به خلال شهر</span>
+                          <span className="text-xs font-semibold text-gray-300">{isAr ? 'موعد موصى به خلال شهر' : 'Recommended within month'}</span>
                         </div>
-                        <span className="text-base font-bold text-amber-400">{warningPredictiveCount} سيارات</span>
+                        <span className="text-base font-bold text-amber-400">{warningPredictiveCount} {isAr ? 'سيارات' : 'vehicles'}</span>
                       </div>
 
                       <div className="bg-[#0a0b0d] border border-gray-800 p-3.5 rounded-xl flex items-center justify-between">
@@ -910,26 +896,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
                             <Activity className="w-4 h-4" />
                           </div>
-                          <span className="text-xs font-semibold text-gray-300">حالة ممتازة</span>
+                          <span className="text-xs font-semibold text-gray-300">{isAr ? 'حالة ممتازة' : 'Excellent Condition'}</span>
                         </div>
                         <span className="text-base font-bold text-emerald-400">
-                          {predictiveMaintenanceData.length - urgentPredictiveCount - warningPredictiveCount} سيارات
+                          {predictiveMaintenanceData.length - urgentPredictiveCount - warningPredictiveCount} {isAr ? 'سيارات' : 'vehicles'}
                         </span>
                       </div>
                     </div>
 
-                    {/* Predictive Vehicles Table / List */}
+                    {/* Predictive Vehicles Table */}
                     <div className="overflow-x-auto border border-gray-800/80 rounded-xl">
                       <table className="w-full text-right text-xs">
                         <thead>
                           <tr className="bg-[#0a0b0d] text-gray-400 border-b border-gray-800">
-                            <th className="p-3">السيارة واللوحة</th>
-                            <th className="p-3">العداد الحالي</th>
-                            <th className="p-3">مستهدف الصيانة</th>
-                            <th className="p-3">معدل الاستهلاك اليومي (الانحدار)</th>
-                            <th className="p-3">المتبقي المتوقع</th>
-                            <th className="p-3">تاريخ الصيانة المتوقع</th>
-                            <th className="p-3">الحالة والتوقع</th>
+                            <th className="p-3">{isAr ? 'السيارة واللوحة' : 'Vehicle & Plate'}</th>
+                            <th className="p-3">{isAr ? 'العداد الحالي' : 'Current Odometer'}</th>
+                            <th className="p-3">{isAr ? 'مستهدف الصيانة' : 'Target Service'}</th>
+                            <th className="p-3">{isAr ? 'معدل الاستهلاك اليومي' : 'Daily Avg. Consumption'}</th>
+                            <th className="p-3">{isAr ? 'المتبقي المتوقع' : 'Remaining Estimate'}</th>
+                            <th className="p-3">{isAr ? 'تاريخ الصيانة المتوقع' : 'Expected Service Date'}</th>
+                            <th className="p-3">{isAr ? 'الحالة والتوقع' : 'Status & Prediction'}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800/60">
@@ -940,20 +926,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 <span className="block text-[11px] font-normal text-gray-400">{item.vehicle.plateNumber}</span>
                               </td>
                               <td className="p-3 font-mono text-gray-200">
-                                {item.currentMileage.toLocaleString('ar-SA')} كم
+                                {item.currentMileage.toLocaleString()} km
                               </td>
                               <td className="p-3 font-mono text-indigo-300">
-                                {item.targetKm.toLocaleString('ar-SA')} كم
+                                {item.targetKm.toLocaleString()} km
                               </td>
                               <td className="p-3 text-gray-300">
-                                <span className="font-bold text-amber-400 font-mono">{item.kmPerDay} كم/يوم</span>
+                                <span className="font-bold text-amber-400 font-mono">{item.kmPerDay} km/day</span>
                                 <span className="block text-[10px] text-gray-500">{item.confidence}</span>
                               </td>
                               <td className="p-3 font-mono">
                                 {item.remainingKm <= 0 ? (
-                                  <span className="text-red-400 font-bold">تجاوز بـ {Math.abs(item.remainingKm).toLocaleString('ar-SA')} كم</span>
+                                  <span className="text-red-400 font-bold">{isAr ? `تجاوز بـ ${Math.abs(item.remainingKm).toLocaleString()} كم` : `Overdue by ${Math.abs(item.remainingKm).toLocaleString()} km`}</span>
                                 ) : (
-                                  <span className="text-gray-300">{item.remainingKm.toLocaleString('ar-SA')} كم ({item.daysRemaining} يوم)</span>
+                                  <span className="text-gray-300">{item.remainingKm.toLocaleString()} km ({item.daysRemaining} {isAr ? 'يوم' : 'days'})</span>
                                 )}
                               </td>
                               <td className="p-3 dir-ltr text-right font-mono text-gray-200">
@@ -962,15 +948,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               <td className="p-3">
                                 {item.riskLevel === 'urgent' ? (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-500/10 text-red-400 border border-red-500/20">
-                                    <AlertTriangle className="w-3 h-3" /> صيانة عاجلة
+                                    <AlertTriangle className="w-3 h-3" /> {isAr ? 'صيانة عاجلة' : 'Urgent'}
                                   </span>
                                 ) : item.riskLevel === 'warning' ? (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                                    <Clock className="w-3 h-3" /> اقتراب الموعد
+                                    <Clock className="w-3 h-3" /> {isAr ? 'اقتراب الموعد' : 'Upcoming'}
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    <CheckCircle2 className="w-3 h-3" /> حالة آمنة
+                                    <CheckCircle2 className="w-3 h-3" /> {isAr ? 'حالة آمنة' : 'Safe'}
                                   </span>
                                 )}
                               </td>
@@ -989,15 +975,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <div>
                         <h2 className="text-lg font-bold text-white flex items-center gap-2">
                           <Flame className="w-5 h-5 text-amber-500" />
-                          تحليلات واستهلاك الوقود (Recharts Charts)
+                          {isAr ? 'تحليلات واستهلاك الوقود (Recharts Charts)' : 'Fuel Analytics & Consumption (Recharts Charts)'}
                         </h2>
-                        <p className="text-xs text-gray-400">رسوم بيانية تفاعلية لمتابعة المصاريف الشهرية ومعدلات الاستهلاك للسيارات</p>
+                        <p className="text-xs text-gray-400">{isAr ? 'رسوم بيانية تفاعلية لمتابعة المصاريف الشهرية ومعدلات الاستهلاك للسيارات' : 'Interactive charts for monthly expenses and vehicle consumption rates'}</p>
                       </div>
                       <button
                         onClick={() => onNavigateTab('fuel')}
                         className="text-xs font-bold text-amber-400 hover:underline flex items-center gap-1"
                       >
-                        سجلات الوقود التفصيلية
+                        {isAr ? 'سجلات الوقود التفصيلية' : 'Fuel Logs'}
                         <ArrowUpRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -1234,13 +1220,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div className="flex items-center justify-between border-b pb-3 border-gray-800">
                       <h3 className="text-base font-bold text-white flex items-center gap-2">
                         <FileCheck2 className="w-5 h-5 text-[#cbb26a]" />
-                        حالة حركة واستلام السيارات الحالية (منصة التوقيع أونلاين)
+                        {isAr ? 'حالة حركة واستلام السيارات الحالية (منصة التوقيع أونلاين)' : 'Current Vehicle Checkout Status (Digital Signature Platform)'}
                       </h3>
                       <button
                         onClick={() => onNavigateTab('checkout')}
                         className="text-xs font-bold text-[#cbb26a] hover:underline"
                       >
-                        الانتقال لغرفة الاستلام والتسليم
+                        {isAr ? 'الانتقال لغرفة الاستلام والتسليم' : 'Go to Checkout Hub'}
                       </button>
                     </div>
 
@@ -1248,13 +1234,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       <table className="w-full text-right text-sm">
                         <thead>
                           <tr className="bg-[#0a0b0d] text-gray-400 text-xs border-b border-gray-800">
-                            <th className="p-3 rounded-r-lg">السيارة واللوحة</th>
-                            <th className="p-3">المستلم / السائق</th>
-                            <th className="p-3">غرض الاستخدام</th>
-                            <th className="p-3">وقت الخروج</th>
-                            <th className="p-3">عداد الخروج</th>
-                            <th className="p-3">التوقيع</th>
-                            <th className="p-3 rounded-l-lg">الحالة</th>
+                            <th className="p-3 rounded-r-lg">{isAr ? 'السيارة واللوحة' : 'Vehicle & Plate'}</th>
+                            <th className="p-3">{isAr ? 'المستلم / السائق' : 'Driver'}</th>
+                            <th className="p-3">{isAr ? 'غرض الاستخدام' : 'Purpose'}</th>
+                            <th className="p-3">{isAr ? 'وقت الخروج' : 'Checkout Time'}</th>
+                            <th className="p-3">{isAr ? 'عداد الخروج' : 'Odometer'}</th>
+                            <th className="p-3">{isAr ? 'التوقيع' : 'Signature'}</th>
+                            <th className="p-3 rounded-l-lg">{isAr ? 'الحالة' : 'Status'}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800/60">
@@ -1265,19 +1251,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             return (
                               <tr key={session.id} className="hover:bg-white/5 transition">
                                 <td className="p-3 font-bold text-white">
-                                  {vehicle ? `${vehicle.make} ${vehicle.model}` : 'مركبة'}
+                                  {vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'}
                                   <span className="block text-xs font-normal text-gray-400">{vehicle?.plateNumber}</span>
                                 </td>
                                 <td className="p-3 text-gray-300">
-                                  {driver?.name || 'مستلم عام'}
+                                  {driver?.name || 'Driver'}
                                 </td>
                                 <td className="p-3 text-xs text-gray-400">
                                   {session.purposeCustom || session.purpose}
                                 </td>
                                 <td className="p-3 text-xs text-gray-400 dir-ltr text-right">
-                                  {new Date(session.checkoutTime).toLocaleString('ar-SA')}
+                                  {new Date(session.checkoutTime).toLocaleString('en-US')}
                                 </td>
-                                <td className="p-3 text-xs font-mono text-gray-300">{session.checkoutOdometer.toLocaleString()} كم</td>
+                                <td className="p-3 text-xs font-mono text-gray-300">{session.checkoutOdometer.toLocaleString()} km</td>
                                 <td className="p-3">
                                   {session.checkoutSignature ? (
                                     <img src={session.checkoutSignature} alt="Sig" className="h-6 object-contain invert brightness-200" />
@@ -1288,11 +1274,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 <td className="p-3">
                                   {session.status === 'active' ? (
                                     <span className="inline-flex items-center gap-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2.5 py-1 rounded-full text-xs font-bold">
-                                      <Clock className="w-3 h-3" /> قيد الاستخدام
+                                      <Clock className="w-3 h-3" /> {isAr ? 'قيد الاستخدام' : 'Active'}
                                     </span>
                                   ) : (
                                     <span className="inline-flex items-center gap-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-full text-xs font-bold">
-                                      <CheckCircle2 className="w-3 h-3" /> تم الإعادة
+                                      <CheckCircle2 className="w-3 h-3" /> {isAr ? 'تم الإعادة' : 'Returned'}
                                     </span>
                                   )}
                                 </td>
