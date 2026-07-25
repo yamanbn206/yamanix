@@ -24,10 +24,28 @@ import {
 } from '../data/mockData';
 import { supabase } from './supabase';
 
-// ====================================================
-// دوال مساعدة لتحويل camelCase ↔ snake_case
-// ====================================================
+// ============================================================
+// مفاتيح التخزين المحلي (للنسخ الاحتياطي فقط)
+// ============================================================
+const KEYS = {
+  COMPANIES: 'fleet_app_companies_v1',
+  ACTIVE_COMPANY_ID: 'fleet_app_active_company_id_v1',
+  VEHICLES: 'fleet_app_vehicles_v1',
+  DRIVERS: 'fleet_app_drivers_v1',
+  GARAGES: 'fleet_app_garages_v1',
+  MAINTENANCE: 'fleet_app_maintenance_v1',
+  FUEL: 'fleet_app_fuel_v1',
+  EXPENSES: 'fleet_app_expenses_v1',
+  CHECKOUTS: 'fleet_app_checkouts_v1',
+  SETTINGS: 'fleet_app_settings_v1',
+  DOCUMENTS: 'fleet_app_documents_v1',
+  PENDING_SYNC: 'fleet_app_pending_sync_v1',
+  LAST_SYNC_TIME: 'fleet_app_last_sync_time_v1',
+};
 
+// ============================================================
+// دوال مساعدة للتحويل بين camelCase و snake_case
+// ============================================================
 function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
@@ -52,9 +70,9 @@ function toCamelCase(obj: any): any {
   return result;
 }
 
-// ====================================================
-// كائن storage المعتمد على Supabase فقط
-// ====================================================
+// ============================================================
+// دوال التخزين (تعتمد على Supabase + localStorage كنسخة احتياطية)
+// ============================================================
 export const storage = {
 
   // ===== COMPANIES =====
@@ -65,16 +83,18 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data)) {
+        localStorage.setItem(KEYS.COMPANIES, JSON.stringify(data));
         return toCamelCase(data);
       }
     } catch (e) {
-      console.error('❌ Failed to fetch companies from Supabase:', e);
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return [];
+    return toCamelCase(JSON.parse(localStorage.getItem(KEYS.COMPANIES) || JSON.stringify(initialCompanies)));
   },
 
   saveCompanies: async (companies: Company[]) => {
     if (!Array.isArray(companies)) return;
+    localStorage.setItem(KEYS.COMPANIES, JSON.stringify(companies));
     try {
       const { error } = await supabase
         .from('companies')
@@ -86,8 +106,12 @@ export const storage = {
   },
 
   // ===== ACTIVE COMPANY ID =====
-  getActiveCompanyId: (): string => 'comp-1',
-  setActiveCompanyId: (_id: string) => {},
+  getActiveCompanyId: (): string => {
+    return localStorage.getItem(KEYS.ACTIVE_COMPANY_ID) || 'all';
+  },
+  setActiveCompanyId: (id: string) => {
+    localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, id);
+  },
 
   // ===== VEHICLES =====
   getVehicles: async (): Promise<Vehicle[]> => {
@@ -97,25 +121,24 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.VEHICLES, JSON.stringify(data));
         return toCamelCase(data);
       }
     } catch (e) {
-      console.error('❌ Failed to fetch vehicles from Supabase:', e);
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return [];
+    const local = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || JSON.stringify(initialVehicles));
+    return Array.isArray(local) ? toCamelCase(local) : initialVehicles;
   },
 
   saveVehicles: async (vehicles: Vehicle[]) => {
     if (!Array.isArray(vehicles)) return;
+    localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles));
     try {
       const { error } = await supabase
         .from('vehicles')
         .upsert(toSnakeCase(vehicles), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync vehicles to Supabase failed:', error);
-      } else {
-        console.log('✅ Vehicles synced to Supabase successfully');
-      }
+      if (error) console.error('❌ Sync vehicles to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync vehicles error:', e);
     }
@@ -129,16 +152,19 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.DRIVERS, JSON.stringify(data));
         return toCamelCase(data);
       }
     } catch (e) {
-      console.error('❌ Failed to fetch drivers from Supabase:', e);
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return [];
+    const local = JSON.parse(localStorage.getItem(KEYS.DRIVERS) || JSON.stringify(initialDrivers));
+    return Array.isArray(local) ? toCamelCase(local) : initialDrivers;
   },
 
   saveDrivers: async (drivers: Driver[]) => {
     if (!Array.isArray(drivers)) return;
+    localStorage.setItem(KEYS.DRIVERS, JSON.stringify(drivers));
     try {
       const { error } = await supabase
         .from('drivers')
@@ -157,16 +183,19 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.GARAGES, JSON.stringify(data));
         return toCamelCase(data);
       }
     } catch (e) {
-      console.error('❌ Failed to fetch garages from Supabase:', e);
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return [];
+    const local = JSON.parse(localStorage.getItem(KEYS.GARAGES) || JSON.stringify(initialGarages));
+    return Array.isArray(local) ? toCamelCase(local) : initialGarages;
   },
 
   saveGarages: async (garages: Garage[]) => {
     if (!Array.isArray(garages)) return;
+    localStorage.setItem(KEYS.GARAGES, JSON.stringify(garages));
     try {
       const { error } = await supabase
         .from('garages')
@@ -185,16 +214,19 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(data));
         return toCamelCase(data);
       }
     } catch (e) {
-      console.error('❌ Failed to fetch maintenance records from Supabase:', e);
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return [];
+    const local = JSON.parse(localStorage.getItem(KEYS.MAINTENANCE) || JSON.stringify(initialMaintenanceRecords));
+    return Array.isArray(local) ? toCamelCase(local) : initialMaintenanceRecords;
   },
 
   saveMaintenanceRecords: async (records: MaintenanceRecord[]) => {
     if (!Array.isArray(records)) return;
+    localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(records));
     try {
       const { error } = await supabase
         .from('maintenance_records')
@@ -213,16 +245,19 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.FUEL, JSON.stringify(data));
         return toCamelCase(data);
       }
     } catch (e) {
-      console.error('❌ Failed to fetch fuel records from Supabase:', e);
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return [];
+    const local = JSON.parse(localStorage.getItem(KEYS.FUEL) || JSON.stringify(initialFuelRecords));
+    return Array.isArray(local) ? toCamelCase(local) : initialFuelRecords;
   },
 
   saveFuelRecords: async (records: FuelRecord[]) => {
     if (!Array.isArray(records)) return;
+    localStorage.setItem(KEYS.FUEL, JSON.stringify(records));
     try {
       const { error } = await supabase
         .from('fuel_records')
@@ -241,16 +276,19 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.EXPENSES, JSON.stringify(data));
         return toCamelCase(data);
       }
     } catch (e) {
-      console.error('❌ Failed to fetch expenses from Supabase:', e);
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return [];
+    const local = JSON.parse(localStorage.getItem(KEYS.EXPENSES) || JSON.stringify(initialExpenseRecords));
+    return Array.isArray(local) ? toCamelCase(local) : initialExpenseRecords;
   },
 
   saveExpenseRecords: async (records: ExpenseRecord[]) => {
     if (!Array.isArray(records)) return;
+    localStorage.setItem(KEYS.EXPENSES, JSON.stringify(records));
     try {
       const { error } = await supabase
         .from('expenses')
@@ -269,16 +307,19 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(data));
         return toCamelCase(data);
       }
     } catch (e) {
-      console.error('❌ Failed to fetch checkout sessions from Supabase:', e);
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return [];
+    const local = JSON.parse(localStorage.getItem(KEYS.CHECKOUTS) || JSON.stringify(initialCheckoutSessions));
+    return Array.isArray(local) ? toCamelCase(local) : initialCheckoutSessions;
   },
 
   saveCheckoutSessions: async (sessions: CheckoutSession[]) => {
     if (!Array.isArray(sessions)) return;
+    localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessions));
     try {
       const { error } = await supabase
         .from('checkout_sessions')
@@ -290,9 +331,19 @@ export const storage = {
   },
 
   // ===== SETTINGS =====
-  getSettings: (): CompanySettings => initialCompanySettings,
+  getSettings: (): CompanySettings => {
+    const local = localStorage.getItem(KEYS.SETTINGS);
+    if (local) {
+      try {
+        return JSON.parse(local);
+      } catch (e) {
+        console.warn('Invalid settings in localStorage, using defaults');
+      }
+    }
+    return initialCompanySettings;
+  },
   saveSettings: (settings: CompanySettings) => {
-    console.warn('⚠️ Settings are not saved to Supabase yet (local only)');
+    localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
   },
 
   // ===== DOCUMENTS =====
@@ -303,16 +354,19 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
+        localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(data));
         return toCamelCase(data);
       }
     } catch (e) {
-      console.error('❌ Failed to fetch documents from Supabase:', e);
+      console.warn('Supabase fetch failed, falling back to localStorage:', e);
     }
-    return [];
+    const local = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || JSON.stringify(initialCompanyDocuments));
+    return Array.isArray(local) ? toCamelCase(local) : initialCompanyDocuments;
   },
 
   saveDocuments: async (docs: CompanyDocument[]) => {
     if (!Array.isArray(docs)) return;
+    localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docs));
     try {
       const { error } = await supabase
         .from('documents')
@@ -323,11 +377,31 @@ export const storage = {
     }
   },
 
-  // ===== دوال التوافق (لم تعد مستخدمة) =====
-  getPendingSyncCount: (): number => 0,
-  getLastSyncTime: (): string | null => null,
-  clearPendingSync: (): void => {},
+  // ===== دوال المزامنة =====
+  getPendingSyncCount: (): number => {
+    return parseInt(localStorage.getItem(KEYS.PENDING_SYNC) || '0');
+  },
+  getLastSyncTime: (): string | null => {
+    return localStorage.getItem(KEYS.LAST_SYNC_TIME);
+  },
+  clearPendingSync: (): void => {
+    localStorage.setItem(KEYS.PENDING_SYNC, '0');
+    localStorage.setItem(KEYS.LAST_SYNC_TIME, new Date().toISOString());
+  },
   resetToDefaults: () => {
-    console.warn('⚠️ Reset to defaults is not implemented for Supabase yet');
+    localStorage.clear();
+    // إعادة تعبئة البيانات الافتراضية
+    localStorage.setItem(KEYS.COMPANIES, JSON.stringify(initialCompanies));
+    localStorage.setItem(KEYS.VEHICLES, JSON.stringify(initialVehicles));
+    localStorage.setItem(KEYS.DRIVERS, JSON.stringify(initialDrivers));
+    localStorage.setItem(KEYS.GARAGES, JSON.stringify(initialGarages));
+    localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(initialMaintenanceRecords));
+    localStorage.setItem(KEYS.FUEL, JSON.stringify(initialFuelRecords));
+    localStorage.setItem(KEYS.EXPENSES, JSON.stringify(initialExpenseRecords));
+    localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(initialCheckoutSessions));
+    localStorage.setItem(KEYS.SETTINGS, JSON.stringify(initialCompanySettings));
+    localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(initialCompanyDocuments));
+    localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, 'all');
+    window.location.reload();
   }
 };

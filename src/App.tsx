@@ -178,7 +178,6 @@ const UserManagement: React.FC<{ profile: Profile }> = ({ profile }) => {
     e.preventDefault();
     setActionLoading(true);
     try {
-      // إنشاء حساب جديد في auth.users
       const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
         email: newUserEmail,
         password: newUserPassword,
@@ -186,7 +185,6 @@ const UserManagement: React.FC<{ profile: Profile }> = ({ profile }) => {
       });
       if (signUpError) throw signUpError;
 
-      // إدراج الملف الشخصي (profile)
       if (authData.user) {
         const { error: profileError } = await supabase
           .from('profiles')
@@ -199,7 +197,6 @@ const UserManagement: React.FC<{ profile: Profile }> = ({ profile }) => {
         if (profileError) throw profileError;
       }
 
-      // تحديث القائمة
       await loadUsers();
       setShowAddModal(false);
       setNewUserEmail('');
@@ -233,7 +230,6 @@ const UserManagement: React.FC<{ profile: Profile }> = ({ profile }) => {
     if (!confirm('هل أنت متأكد من حذف هذا المستخدم نهائياً؟')) return;
     setActionLoading(true);
     try {
-      // حذف المستخدم من auth (يتطلب خدمة role)
       const { error } = await supabase.auth.admin.deleteUser(userId);
       if (error) throw error;
       await loadUsers();
@@ -317,7 +313,6 @@ const UserManagement: React.FC<{ profile: Profile }> = ({ profile }) => {
         </table>
       </div>
 
-      {/* Modal إضافة مستخدم */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
@@ -388,21 +383,30 @@ const UserManagement: React.FC<{ profile: Profile }> = ({ profile }) => {
 // المكون الرئيسي App
 // ============================================================
 export default function App() {
-  const [lang, setLang] = useState<Language>('ar');
+  // ===== اللغة =====
+  const [lang, setLang] = useState<Language>(() => {
+    const saved = localStorage.getItem('fleet_language') as Language;
+    return saved || 'en'; // افتراضي إنجليزي
+  });
+
+  // ===== التنقل =====
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState<boolean>(false);
   const toastRef = React.useRef<ToastRefHandler>(null);
 
-  // حالة المصادقة
+  // ===== المصادقة =====
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // بيانات التطبيق
+  // ===== بيانات التطبيق =====
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [activeCompanyId, setActiveCompanyIdState] = useState<string>('comp-1');
+  const [activeCompanyId, setActiveCompanyIdState] = useState<string>(() => {
+    const saved = localStorage.getItem('fleet_active_company');
+    return saved || 'all';
+  });
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [garages, setGarages] = useState<Garage[]>([]);
@@ -415,6 +419,15 @@ export default function App() {
   const [receiptSession, setReceiptSession] = useState<CheckoutSession | null>(null);
 
   // ============================================================
+  // حفظ اللغة في localStorage عند تغييرها
+  // ============================================================
+  useEffect(() => {
+    localStorage.setItem('fleet_language', lang);
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  // ============================================================
   // جلسة المستخدم
   // ============================================================
   useEffect(() => {
@@ -422,7 +435,6 @@ export default function App() {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       if (session) {
-        // جلب الملف الشخصي
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
@@ -486,11 +498,12 @@ export default function App() {
   }, [session]);
 
   // ============================================================
-  // دوال مساعدة
+  // دوال إدارة الشركات
   // ============================================================
   const handleSelectCompany = (id: string) => {
     setActiveCompanyIdState(id);
     storage.setActiveCompanyId(id);
+    localStorage.setItem('fleet_active_company', id);
   };
 
   const handleAddCompany = async (newComp: Company) => {
@@ -500,15 +513,24 @@ export default function App() {
   };
 
   const handleDeleteCompany = async (compDeleteId: string) => {
+    if (!confirm(lang === 'ar' ? 'هل أنت متأكد من حذف هذه الشركة وجميع بياناتها؟' : 'Are you sure you want to delete this company and all its data?')) return;
+    
     const updated = companies.filter(c => c.id !== compDeleteId);
     setCompanies(updated);
     await storage.saveCompanies(updated);
+    
     if (activeCompanyId === compDeleteId) {
-      const nextId = updated[0]?.id || 'comp-1';
+      const nextId = updated.length > 0 ? updated[0].id : 'all';
       handleSelectCompany(nextId);
     }
+    
+    // إعادة تحميل الصفحة لتحديث جميع المكونات
+    setTimeout(() => window.location.reload(), 500);
   };
 
+  // ============================================================
+  // دوال أخرى (ملخصة)
+  // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
     if (activeCompanyId === 'all') {
       return {
@@ -543,9 +565,7 @@ export default function App() {
     return settings;
   }, [activeCompanyId, companies, settings, lang]);
 
-  // ============================================================
-  // تصفية البيانات حسب الشركة النشطة (مع التحقق من المصفوفة)
-  // ============================================================
+  // تصفية البيانات حسب الشركة النشطة
   const filteredVehicles = useMemo(() => {
     if (!Array.isArray(vehicles)) return [];
     if (activeCompanyId === 'all') return vehicles;
@@ -594,9 +614,7 @@ export default function App() {
     return documents.filter(doc => (doc.companyId || 'comp-1') === activeCompanyId);
   }, [documents, activeCompanyId]);
 
-  // ============================================================
   // التنبيهات
-  // ============================================================
   const activeAlertsCount = React.useMemo(() => {
     let count = 0;
     const today = new Date();
@@ -627,9 +645,7 @@ export default function App() {
     return count;
   }, [filteredVehicles, filteredDrivers]);
 
-  // ============================================================
-  // دوال الحفظ (مع إضافة created_by)
-  // ============================================================
+  // دوال الحفظ (مختصرة)
   const getCurrentUserId = () => session?.user?.id;
 
   const handleSaveVehicle = async (v: Vehicle) => {
@@ -647,7 +663,12 @@ export default function App() {
     await storage.saveVehicles(updated);
   };
 
-  // دوال أخرى (نموذجية)
+  const handleDeleteVehicle = async (id: string) => {
+    const updated = vehicles.filter(v => v.id !== id);
+    setVehicles(updated);
+    await storage.saveVehicles(updated);
+  };
+
   const handleSaveDriver = async (d: Driver) => {
     const compId = d.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedDriver = { 
@@ -663,30 +684,22 @@ export default function App() {
     await storage.saveDrivers(updated);
   };
 
-  // دوال الحذف
-  const handleDeleteVehicle = async (id: string) => {
-    const updated = vehicles.filter(v => v.id !== id);
-    setVehicles(updated);
-    await storage.saveVehicles(updated);
-  };
-
   const handleDeleteDriver = async (id: string) => {
     const updated = drivers.filter(d => d.id !== id);
     setDrivers(updated);
     await storage.saveDrivers(updated);
   };
 
-  // ============================================================
   // تسجيل الخروج
-  // ============================================================
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+    localStorage.removeItem('fleet_active_company');
   };
 
   // ============================================================
-  // إذا كان المستخدم غير مسجل الدخول
+  // شاشة التحميل والمصادقة
   // ============================================================
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">جاري التحميل...</div>;
@@ -717,7 +730,7 @@ export default function App() {
   const isAllowed = currentNavItem ? currentNavItem.allowed.includes(profile?.role || 'user') : false;
 
   // ============================================================
-  // التصيير
+  // التصيير الرئيسي
   // ============================================================
   return (
     <div className={`min-h-screen bg-slate-100 dark:bg-[#0a0b0d] text-slate-800 dark:text-gray-200 font-sans transition-colors duration-200 ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`}>
@@ -749,6 +762,7 @@ export default function App() {
                 lang={lang}
                 onSelectCompany={handleSelectCompany}
                 onAddCompany={handleAddCompany}
+                onDeleteCompany={handleDeleteCompany}
                 onManageCompanies={() => setActiveTab('settings')}
               />
             </div>
@@ -756,26 +770,49 @@ export default function App() {
 
           <div className="flex items-center gap-2">
             <OfflineSyncBadge lang={lang} />
-            <button onClick={() => setLang(lang === 'en' ? 'ar' : 'en')} className="px-3 py-1.5 bg-blue-600/10 dark:bg-blue-600/15 hover:bg-blue-600/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5">
+
+            <button
+              onClick={() => {
+                const newLang = lang === 'en' ? 'ar' : 'en';
+                setLang(newLang);
+                localStorage.setItem('fleet_language', newLang);
+              }}
+              className="px-3 py-1.5 bg-blue-600/10 dark:bg-blue-600/15 hover:bg-blue-600/20 text-blue-700 dark:text-blue-400 border border-blue-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5"
+            >
               <Languages className="w-4 h-4" />
               <span>{lang === 'en' ? 'AR' : 'EN'}</span>
             </button>
-            <button onClick={() => { setNotificationDrawerOpen(true); toastRef.current?.triggerCheckOnLogin(); }} className="p-2 relative text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800/60 rounded-xl transition group">
+
+            <button
+              onClick={() => {
+                setNotificationDrawerOpen(true);
+                toastRef.current?.triggerCheckOnLogin();
+              }}
+              className="p-2 relative text-slate-600 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800/60 rounded-xl transition group"
+            >
               <Bell className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              {activeAlertsCount > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center animate-pulse shadow-md border-2 border-white dark:border-[#0f1115]">{activeAlertsCount}</span>}
+              {activeAlertsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-extrabold w-5 h-5 rounded-full flex items-center justify-center animate-pulse shadow-md border-2 border-white dark:border-[#0f1115]">
+                  {activeAlertsCount}
+                </span>
+              )}
             </button>
+
             <button onClick={handleLogout} className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition" title="تسجيل الخروج">
               <LogOut className="w-5 h-5" />
             </button>
+
             <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800/60 rounded-lg transition">
               {darkMode ? <Sun className="w-5 h-5 text-[#cbb26a]" /> : <Moon className="w-5 h-5" />}
             </button>
+
             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 lg:hidden text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white">
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
 
+        {/* شريط التبويبات */}
         <div className="hidden lg:block bg-slate-50 dark:bg-[#0a0b0d]/90 border-t border-slate-200 dark:border-gray-800/80 px-4 sm:px-6">
           <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto py-1.5">
             {navItems.map(item => {
@@ -783,7 +820,17 @@ export default function App() {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
-                <button key={item.id} onClick={() => setActiveTab(item.id)} className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${isActive ? 'bg-[#cbb26a]/20 text-amber-900 dark:text-[#cbb26a] border-b-2 border-[#cbb26a] shadow-xs' : item.highlight ? 'bg-[#cbb26a] text-black font-bold hover:bg-[#b89f57]' : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/5'}`}>
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                    isActive
+                      ? 'bg-[#cbb26a]/20 text-amber-900 dark:text-[#cbb26a] border-b-2 border-[#cbb26a] shadow-xs'
+                      : item.highlight
+                      ? 'bg-[#cbb26a] text-black font-bold hover:bg-[#b89f57]'
+                      : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/5'
+                  }`}
+                >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-amber-800 dark:text-[#cbb26a]' : item.highlight ? 'text-black' : 'text-slate-500 dark:text-gray-400'}`} />
                   {item.label}
                 </button>
@@ -799,7 +846,16 @@ export default function App() {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
-                <button key={item.id} onClick={() => { setActiveTab(item.id); setMobileMenuOpen(false); }} className={`w-full text-start px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-3 ${isActive ? 'bg-[#cbb26a]/20 text-amber-900 dark:text-[#cbb26a] border-s-2 border-[#cbb26a]' : 'text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5'}`}>
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full text-start px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-3 ${
+                    isActive ? 'bg-[#cbb26a]/20 text-amber-900 dark:text-[#cbb26a] border-s-2 border-[#cbb26a]' : 'text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5'
+                  }`}
+                >
                   <Icon className={`w-5 h-5 ${isActive ? 'text-amber-800 dark:text-[#cbb26a]' : 'text-slate-500 dark:text-gray-400'}`} />
                   {item.label}
                 </button>
@@ -825,7 +881,7 @@ export default function App() {
             {activeTab === 'maintenance' && <MaintenanceView maintenance={filteredMaintenance} vehicles={filteredVehicles} garages={filteredGarages} onSaveMaintenance={async (record) => { const updated = [record, ...maintenance]; setMaintenance(updated); await storage.saveMaintenanceRecords(updated); }} onDeleteMaintenance={async (id) => { const updated = maintenance.filter(m => m.id !== id); setMaintenance(updated); await storage.saveMaintenanceRecords(updated); }} onSaveGarage={async (g) => { const updated = [g, ...garages]; setGarages(updated); await storage.saveGarages(updated); }} lang={lang} />}
             {activeTab === 'fuel' && <FuelExpensesView fuel={filteredFuel} expenses={filteredExpenses} vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} garages={filteredGarages} maintenance={filteredMaintenance} onSaveFuel={async (f) => { const updated = [f, ...fuel]; setFuel(updated); await storage.saveFuelRecords(updated); }} onDeleteFuel={async (id) => { const updated = fuel.filter(f => f.id !== id); setFuel(updated); await storage.saveFuelRecords(updated); }} onSaveExpense={async (e) => { const updated = [e, ...expenses]; setExpenses(updated); await storage.saveExpenseRecords(updated); }} onDeleteExpense={async (id) => { const updated = expenses.filter(e => e.id !== id); setExpenses(updated); await storage.saveExpenseRecords(updated); }} onSaveMaintenance={async (record) => { const updated = [record, ...maintenance]; setMaintenance(updated); await storage.saveMaintenanceRecords(updated); }} lang={lang} />}
             {activeTab === 'expiries' && <ExpiriesView vehicles={filteredVehicles} drivers={filteredDrivers} onSaveVehicle={handleSaveVehicle} lang={lang} />}
-            {activeTab === 'reports' && <PrintReportsView settings={currentCompanySettings} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} activeReceiptSession={receiptSession} onClearReceiptSession={() => setReceiptSession(null)} onSaveSettings={(newSettings) => { setSettings(newSettings); storage.saveSettings(newSettings); }} lang={lang} />}
+            {activeTab === 'reports' && <PrintReportsView settings={currentCompanySettings} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} activeReceiptSession={receiptSession} onClearReceiptSession={() => setReceiptSession(null)} onSaveSettings={(newSettings) => { setSettings(newSettings); storage.saveSettings(newSettings); }} lang="en" />}
             {activeTab === 'advisor' && <AIFleetAdvisor vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} settings={currentCompanySettings} onSaveVehicle={handleSaveVehicle} onNavigateTab={setActiveTab} lang={lang} />}
             {activeTab === 'settings' && <CompanySettingsView settings={currentCompanySettings} documents={filteredDocuments} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} garages={filteredGarages} expenses={filteredExpenses} lang={lang} companies={companies} activeCompanyId={activeCompanyId} onSave={(newSettings) => { setSettings(newSettings); storage.saveSettings(newSettings); }} onSaveDocuments={async (docs) => { setDocuments(docs); await storage.saveDocuments(docs); }} onSelectCompany={handleSelectCompany} onAddCompany={handleAddCompany} onDeleteCompany={handleDeleteCompany} />}
             {activeTab === 'users' && profile?.role === 'admin' && <UserManagement profile={profile} />}

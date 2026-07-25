@@ -11,6 +11,7 @@ interface CompanySwitcherProps {
   lang?: Language;
   onSelectCompany: (id: string) => void;
   onAddCompany: (newCompany: Company) => void;
+  onDeleteCompany: (id: string) => void;
   onManageCompanies: () => void;
 }
 
@@ -22,6 +23,7 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
   lang = 'ar',
   onSelectCompany,
   onAddCompany,
+  onDeleteCompany,
   onManageCompanies
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,14 +32,12 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
 
   const isAr = lang === 'ar';
 
-  // Active Company object or "All"
   const activeCompany = companies.find(c => c.id === activeCompanyId) || (
     activeCompanyId === 'all'
       ? { id: 'all', name: isAr ? 'جميع الشركات (مجمّع)' : 'All Companies Combined', code: 'ALL' } as Company
       : companies[0]
   );
 
-  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -48,7 +48,6 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Form State for Add Company Modal
   const [form, setForm] = useState<Partial<Company>>({
     name: '',
     code: '',
@@ -94,9 +93,16 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
     });
   };
 
+  const handleDeleteCompany = (compDeleteId: string) => {
+    const companyName = companies.find(c => c.id === compDeleteId)?.name || 'هذه الشركة';
+    if (!window.confirm(isAr ? `هل أنت متأكد من حذف ${companyName} وجميع بياناتها؟` : `Are you sure you want to delete ${companyName} and all its data?`)) return;
+    onDeleteCompany(compDeleteId);
+    // بعد الحذف، نغلق القائمة المنسدلة
+    setIsOpen(false);
+  };
+
   return (
     <div className="relative inline-block text-right" ref={dropdownRef}>
-      {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2.5 px-3 py-1.5 sm:px-3.5 sm:py-2 bg-slate-100 dark:bg-gradient-to-r dark:from-blue-900/40 dark:via-slate-900/80 dark:to-slate-900/90 border border-slate-300 dark:border-blue-500/30 hover:border-blue-500 dark:hover:border-blue-400 rounded-xl transition duration-150 text-slate-800 dark:text-white shadow-xs group"
@@ -125,10 +131,8 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
         <ChevronDown className={`w-3.5 h-3.5 text-slate-500 dark:text-gray-400 group-hover:text-slate-800 dark:group-hover:text-white transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown Menu */}
       {isOpen && (
         <div className={`absolute ${isAr ? 'right-0' : 'left-0'} mt-2 w-80 sm:w-88 bg-white dark:bg-[#0f1117] border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl dark:shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150`}>
-          {/* Header */}
           <div className="p-3.5 border-b border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-slate-900/60 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -148,9 +152,7 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
             </button>
           </div>
 
-          {/* Company Items List */}
           <div className="max-h-72 overflow-y-auto p-2 space-y-1">
-            {/* All Companies option */}
             <button
               onClick={() => {
                 onSelectCompany('all');
@@ -182,64 +184,74 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
 
             <div className="my-1.5 border-t border-slate-200 dark:border-slate-800/60" />
 
-            {/* Registered Companies */}
             {companies.map(comp => {
               const compVehicles = vehicles.filter(v => (v.companyId || 'comp-1') === comp.id);
               const compDrivers = drivers.filter(d => (d.companyId || 'comp-1') === comp.id);
               const isCurrent = activeCompanyId === comp.id;
 
               return (
-                <button
-                  key={comp.id}
-                  onClick={() => {
-                    onSelectCompany(comp.id);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full text-right p-2.5 rounded-xl border transition flex items-center justify-between group ${
-                    isCurrent
-                      ? 'bg-blue-50 border-blue-400 text-blue-950 dark:bg-blue-600/20 dark:border-blue-500/60 dark:text-white'
-                      : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:border-slate-800/60 dark:hover:bg-slate-800/60 dark:text-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 text-blue-600 dark:text-blue-400 font-bold overflow-hidden">
-                      {comp.logoUrl ? (
-                        <img src={comp.logoUrl} alt={comp.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <Building2 className="w-4 h-4" />
-                      )}
-                    </div>
-
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-bold text-slate-900 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-white transition">
-                          {comp.name}
-                        </span>
-                        {comp.code && (
-                          <span className="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-800 text-blue-700 dark:text-blue-300 border border-slate-300 dark:border-slate-700 rounded text-[9px] font-mono font-bold">
-                            {comp.code}
-                          </span>
+                <div key={comp.id} className="relative group">
+                  <button
+                    onClick={() => {
+                      onSelectCompany(comp.id);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full text-right p-2.5 rounded-xl border transition flex items-center justify-between ${
+                      isCurrent
+                        ? 'bg-blue-50 border-blue-400 text-blue-950 dark:bg-blue-600/20 dark:border-blue-500/60 dark:text-white'
+                        : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:border-slate-800/60 dark:hover:bg-slate-800/60 dark:text-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 text-blue-600 dark:text-blue-400 font-bold overflow-hidden">
+                        {comp.logoUrl ? (
+                          <img src={comp.logoUrl} alt={comp.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Building2 className="w-4 h-4" />
                         )}
                       </div>
-                      <div className="text-[10px] text-slate-500 dark:text-gray-400 mt-0.5 flex items-center gap-2 font-mono">
-                        <span>{compVehicles.length} {isAr ? 'مركبة' : 'vehicles'}</span>
-                        <span>•</span>
-                        <span>{compDrivers.length} {isAr ? 'سائق' : 'drivers'}</span>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-900 dark:text-gray-200 truncate group-hover:text-blue-600 dark:group-hover:text-white transition">
+                            {comp.name}
+                          </span>
+                          {comp.code && (
+                            <span className="px-1.5 py-0.2 bg-slate-200 dark:bg-slate-800 text-blue-700 dark:text-blue-300 border border-slate-300 dark:border-slate-700 rounded text-[9px] font-mono font-bold">
+                              {comp.code}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-gray-400 mt-0.5 flex items-center gap-2 font-mono">
+                          <span>{compVehicles.length} {isAr ? 'مركبة' : 'vehicles'}</span>
+                          <span>•</span>
+                          <span>{compDrivers.length} {isAr ? 'سائق' : 'drivers'}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {isCurrent && (
-                    <div className="p-1 rounded-full bg-blue-600 dark:bg-blue-500 text-white shrink-0">
-                      <Check className="w-3.5 h-3.5" />
-                    </div>
+                    {isCurrent && (
+                      <div className="p-1 rounded-full bg-blue-600 dark:bg-blue-500 text-white shrink-0">
+                        <Check className="w-3.5 h-3.5" />
+                      </div>
+                    )}
+                  </button>
+                  
+                  {/* زر حذف الشركة (يظهر فقط عند التمرير) */}
+                  {!isCurrent && companies.length > 1 && (
+                    <button
+                      onClick={() => handleDeleteCompany(comp.id)}
+                      className="absolute top-1 right-1 p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 hover:text-rose-700 rounded-lg transition opacity-0 group-hover:opacity-100"
+                      title={isAr ? 'حذف الشركة' : 'Delete Company'}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
 
-          {/* Footer link to manage in settings */}
           <div className="p-2.5 bg-slate-100 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <span className="text-[11px] text-slate-500 dark:text-gray-400">
               {companies.length} {isAr ? 'شركات مستقلة' : 'independent companies'}
@@ -257,7 +269,6 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
         </div>
       )}
 
-      {/* Add New Company Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-[#0f1117] border border-slate-800 rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-150">
