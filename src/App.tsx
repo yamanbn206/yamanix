@@ -66,16 +66,47 @@ export default function App() {
   const [companies, setCompanies] = useState<Company[]>(() => storage.getCompanies());
   const [activeCompanyId, setActiveCompanyIdState] = useState<string>(() => storage.getActiveCompanyId());
 
-  // App Main State
-  const [vehicles, setVehicles] = useState<Vehicle[]>(() => storage.getVehicles());
-  const [drivers, setDrivers] = useState<Driver[]>(() => storage.getDrivers());
-  const [garages, setGarages] = useState<Garage[]>(() => storage.getGarages());
-  const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>(() => storage.getMaintenanceRecords());
-  const [fuel, setFuel] = useState<FuelRecord[]>(() => storage.getFuelRecords());
-  const [expenses, setExpenses] = useState<ExpenseRecord[]>(() => storage.getExpenseRecords());
-  const [checkouts, setCheckouts] = useState<CheckoutSession[]>(() => storage.getCheckoutSessions());
+  // App Main State (تهيئة بقيم افتراضية فارغة)
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [garages, setGarages] = useState<Garage[]>([]);
+  const [maintenance, setMaintenance] = useState<MaintenanceRecord[]>([]);
+  const [fuel, setFuel] = useState<FuelRecord[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [checkouts, setCheckouts] = useState<CheckoutSession[]>([]);
   const [settings, setSettings] = useState<CompanySettings>(() => storage.getSettings());
-  const [documents, setDocuments] = useState<CompanyDocument[]>(() => storage.getDocuments());
+  const [documents, setDocuments] = useState<CompanyDocument[]>([]);
+
+  // جلب البيانات من Supabase عند تحميل التطبيق
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
+          storage.getVehicles(),
+          storage.getDrivers(),
+          storage.getGarages(),
+          storage.getMaintenanceRecords(),
+          storage.getFuelRecords(),
+          storage.getExpenseRecords(),
+          storage.getCheckoutSessions(),
+          storage.getDocuments()
+        ]);
+
+        setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
+        setDrivers(Array.isArray(driversData) ? driversData : []);
+        setGarages(Array.isArray(garagesData) ? garagesData : []);
+        setMaintenance(Array.isArray(maintenanceData) ? maintenanceData : []);
+        setFuel(Array.isArray(fuelData) ? fuelData : []);
+        setExpenses(Array.isArray(expensesData) ? expensesData : []);
+        setCheckouts(Array.isArray(checkoutsData) ? checkoutsData : []);
+        setDocuments(Array.isArray(documentsData) ? documentsData : []);
+      } catch (error) {
+        console.error('Failed to load data from Supabase:', error);
+      }
+    };
+
+    loadData();
+  }, []);
 
   // Multi-Company Selection Handler
   const handleSelectCompany = (id: string) => {
