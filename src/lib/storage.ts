@@ -105,9 +105,6 @@ export const storage = {
         .upsert(toSnakeCase(companies), { onConflict: 'id' });
       if (error) {
         console.error('❌ Sync companies to Supabase failed:', error);
-        // استعادة النسخة الاحتياطية من localStorage في حالة فشل Supabase
-        const fallback = JSON.parse(localStorage.getItem(KEYS.COMPANIES) || JSON.stringify(initialCompanies));
-        localStorage.setItem(KEYS.COMPANIES, JSON.stringify(fallback));
       }
     } catch (e) {
       console.error('❌ Sync companies error:', e);
@@ -151,12 +148,22 @@ export const storage = {
         .upsert(toSnakeCase(vehicles), { onConflict: 'id' });
       if (error) {
         console.error('❌ Sync vehicles to Supabase failed:', error);
-        // استعادة النسخة الاحتياطية في حالة فشل Supabase
-        const fallback = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || JSON.stringify(initialVehicles));
-        localStorage.setItem(KEYS.VEHICLES, JSON.stringify(fallback));
       }
     } catch (e) {
       console.error('❌ Sync vehicles error:', e);
+    }
+  },
+
+  deleteVehicle: async (id: string) => {
+    try {
+      const { error } = await supabase.from('vehicles').delete().eq('id', id);
+      if (error) throw error;
+      // تحديث localStorage بحذف العنصر
+      const vehicles = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || '[]');
+      localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles.filter((v: any) => v.id !== id)));
+    } catch (e) {
+      console.error('Delete vehicle error:', e);
+      throw e;
     }
   },
 
@@ -188,11 +195,21 @@ export const storage = {
         .upsert(toSnakeCase(drivers), { onConflict: 'id' });
       if (error) {
         console.error('❌ Sync drivers to Supabase failed:', error);
-        const fallback = JSON.parse(localStorage.getItem(KEYS.DRIVERS) || JSON.stringify(initialDrivers));
-        localStorage.setItem(KEYS.DRIVERS, JSON.stringify(fallback));
       }
     } catch (e) {
       console.error('❌ Sync drivers error:', e);
+    }
+  },
+
+  deleteDriver: async (id: string) => {
+    try {
+      const { error } = await supabase.from('drivers').delete().eq('id', id);
+      if (error) throw error;
+      const drivers = JSON.parse(localStorage.getItem(KEYS.DRIVERS) || '[]');
+      localStorage.setItem(KEYS.DRIVERS, JSON.stringify(drivers.filter((d: any) => d.id !== id)));
+    } catch (e) {
+      console.error('Delete driver error:', e);
+      throw e;
     }
   },
 
@@ -224,11 +241,21 @@ export const storage = {
         .upsert(toSnakeCase(garages), { onConflict: 'id' });
       if (error) {
         console.error('❌ Sync garages to Supabase failed:', error);
-        const fallback = JSON.parse(localStorage.getItem(KEYS.GARAGES) || JSON.stringify(initialGarages));
-        localStorage.setItem(KEYS.GARAGES, JSON.stringify(fallback));
       }
     } catch (e) {
       console.error('❌ Sync garages error:', e);
+    }
+  },
+
+  deleteGarage: async (id: string) => {
+    try {
+      const { error } = await supabase.from('garages').delete().eq('id', id);
+      if (error) throw error;
+      const garages = JSON.parse(localStorage.getItem(KEYS.GARAGES) || '[]');
+      localStorage.setItem(KEYS.GARAGES, JSON.stringify(garages.filter((g: any) => g.id !== id)));
+    } catch (e) {
+      console.error('Delete garage error:', e);
+      throw e;
     }
   },
 
@@ -260,11 +287,21 @@ export const storage = {
         .upsert(toSnakeCase(records), { onConflict: 'id' });
       if (error) {
         console.error('❌ Sync maintenance records to Supabase failed:', error);
-        const fallback = JSON.parse(localStorage.getItem(KEYS.MAINTENANCE) || JSON.stringify(initialMaintenanceRecords));
-        localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(fallback));
       }
     } catch (e) {
       console.error('❌ Sync maintenance records error:', e);
+    }
+  },
+
+  deleteMaintenanceRecord: async (id: string) => {
+    try {
+      const { error } = await supabase.from('maintenance_records').delete().eq('id', id);
+      if (error) throw error;
+      const records = JSON.parse(localStorage.getItem(KEYS.MAINTENANCE) || '[]');
+      localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(records.filter((m: any) => m.id !== id)));
+    } catch (e) {
+      console.error('Delete maintenance record error:', e);
+      throw e;
     }
   },
 
@@ -296,11 +333,21 @@ export const storage = {
         .upsert(toSnakeCase(records), { onConflict: 'id' });
       if (error) {
         console.error('❌ Sync fuel records to Supabase failed:', error);
-        const fallback = JSON.parse(localStorage.getItem(KEYS.FUEL) || JSON.stringify(initialFuelRecords));
-        localStorage.setItem(KEYS.FUEL, JSON.stringify(fallback));
       }
     } catch (e) {
       console.error('❌ Sync fuel records error:', e);
+    }
+  },
+
+  deleteFuelRecord: async (id: string) => {
+    try {
+      const { error } = await supabase.from('fuel_records').delete().eq('id', id);
+      if (error) throw error;
+      const records = JSON.parse(localStorage.getItem(KEYS.FUEL) || '[]');
+      localStorage.setItem(KEYS.FUEL, JSON.stringify(records.filter((f: any) => f.id !== id)));
+    } catch (e) {
+      console.error('Delete fuel record error:', e);
+      throw e;
     }
   },
 
@@ -332,11 +379,21 @@ export const storage = {
         .upsert(toSnakeCase(records), { onConflict: 'id' });
       if (error) {
         console.error('❌ Sync expenses to Supabase failed:', error);
-        const fallback = JSON.parse(localStorage.getItem(KEYS.EXPENSES) || JSON.stringify(initialExpenseRecords));
-        localStorage.setItem(KEYS.EXPENSES, JSON.stringify(fallback));
       }
     } catch (e) {
       console.error('❌ Sync expenses error:', e);
+    }
+  },
+
+  deleteExpenseRecord: async (id: string) => {
+    try {
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if (error) throw error;
+      const records = JSON.parse(localStorage.getItem(KEYS.EXPENSES) || '[]');
+      localStorage.setItem(KEYS.EXPENSES, JSON.stringify(records.filter((e: any) => e.id !== id)));
+    } catch (e) {
+      console.error('Delete expense record error:', e);
+      throw e;
     }
   },
 
@@ -368,11 +425,21 @@ export const storage = {
         .upsert(toSnakeCase(sessions), { onConflict: 'id' });
       if (error) {
         console.error('❌ Sync checkout sessions to Supabase failed:', error);
-        const fallback = JSON.parse(localStorage.getItem(KEYS.CHECKOUTS) || JSON.stringify(initialCheckoutSessions));
-        localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(fallback));
       }
     } catch (e) {
       console.error('❌ Sync checkout sessions error:', e);
+    }
+  },
+
+  deleteCheckoutSession: async (id: string) => {
+    try {
+      const { error } = await supabase.from('checkout_sessions').delete().eq('id', id);
+      if (error) throw error;
+      const sessions = JSON.parse(localStorage.getItem(KEYS.CHECKOUTS) || '[]');
+      localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessions.filter((s: any) => s.id !== id)));
+    } catch (e) {
+      console.error('Delete checkout session error:', e);
+      throw e;
     }
   },
 
@@ -420,11 +487,21 @@ export const storage = {
         .upsert(toSnakeCase(docs), { onConflict: 'id' });
       if (error) {
         console.error('❌ Sync documents to Supabase failed:', error);
-        const fallback = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || JSON.stringify(initialCompanyDocuments));
-        localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(fallback));
       }
     } catch (e) {
       console.error('❌ Sync documents error:', e);
+    }
+  },
+
+  deleteDocument: async (id: string) => {
+    try {
+      const { error } = await supabase.from('documents').delete().eq('id', id);
+      if (error) throw error;
+      const docs = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || '[]');
+      localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docs.filter((d: any) => d.id !== id)));
+    } catch (e) {
+      console.error('Delete document error:', e);
+      throw e;
     }
   },
 
