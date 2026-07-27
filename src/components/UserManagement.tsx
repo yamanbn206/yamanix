@@ -76,44 +76,62 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
     setShowAddModal(true);
   };
 
-  const handleSaveUser = async (e: React.FormEvent) => {
+  const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
     try {
-      if (editingUser) {
-        // Update existing user
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            role: formRole,
-            company_id: formCompanyId || null,
-            permissions: formPermissions
-          })
-          .eq('id', editingUser.id);
-        if (error) throw error;
-      } else {
-        // Create new user
-        const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
+      // الحصول على التوكن الحالي للمستخدم
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('You must be logged in to perform this action');
+      }
+
+      // إرسال الطلب إلى الخادم الخلفي
+      const response = await fetch('/api/admin/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
           email: formEmail,
           password: formPassword,
-          email_confirm: true,
-        });
-        if (signUpError) throw signUpError;
+          role: formRole,
+          companyId: formCompanyId,
+          permissions: formPermissions
+        })
+      });
 
-        if (authData.user) {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authData.user.id,
-              email: formEmail,
-              role: formRole,
-              company_id: formCompanyId || null,
-              permissions: formPermissions,
-              full_name: formEmail.split('@')[0]
-            });
-          if (profileError) throw profileError;
-        }
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create user');
       }
+
+      await loadUsers();
+      setShowAddModal(false);
+      resetForm();
+      onUpdate();
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setActionLoading(true);
+    try {
+      // تحديث المستخدم مباشرة عبر Supabase (لأنه مجرد تحديث للـ profile)
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          role: formRole,
+          company_id: formCompanyId || null,
+          permissions: formPermissions
+        })
+        .eq('id', editingUser?.id);
+      if (error) throw error;
 
       await loadUsers();
       setShowAddModal(false);
@@ -130,8 +148,19 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
     if (!confirm(t('confirmDeleteUser', lang))) return;
     setActionLoading(true);
     try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
-      if (error) throw error;
+      // حذف المستخدم عبر الخادم الخلفي
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await fetch(`/api/admin/delete-user/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to delete user');
+
       await loadUsers();
       onUpdate();
     } catch (err: any) {
@@ -253,7 +282,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
               <button onClick={() => { setShowAddModal(false); resetForm(); }} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
-            <form onSubmit={handleSaveUser} className="space-y-4 mt-4">
+            <form onSubmit={editingUser ? handleUpdateUser : handleAddUser} className="space-y-4 mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">

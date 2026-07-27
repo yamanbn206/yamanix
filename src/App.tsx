@@ -561,9 +561,6 @@ export default function App() {
       <LoginScreen
         lang={lang}
         onLogin={() => {}}
-        companyLogo={currentCompanySettings.logoUrl || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=150&auto=format&fit=crop&q=80'}
-        supportEmail="support@yamanix.com"
-        supportPhone="+966 50 123 4567"
       />
     );
   }
@@ -575,30 +572,30 @@ export default function App() {
   const isAllowed = currentNavItem ? hasPermission(currentNavItem.module, 'view') : false;
 
   // ============================================================
-  // التصيير الرئيسي
+  // التصيير الرئيسي (مع تعديل العرض لاستغلال المساحة بالكامل)
   // ============================================================
   return (
     <div className={`min-h-screen bg-slate-100 dark:bg-[#0a0b0d] text-slate-800 dark:text-gray-200 font-sans transition-colors duration-200 ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`}>
       <header className="no-print bg-white dark:bg-[#0f1115] text-slate-800 dark:text-white border-b border-slate-200 dark:border-gray-800 sticky top-0 z-40 shadow-xs dark:shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between max-w-full">
+          <div className="flex items-center gap-3 flex-1 min-w-0">
             {currentCompanySettings.logoUrl ? (
-              <img src={currentCompanySettings.logoUrl} alt="Logo" className="h-10 w-10 object-contain rounded-lg bg-slate-50 dark:bg-[#0a0b0d] p-1 border border-slate-200 dark:border-gray-800" />
+              <img src={currentCompanySettings.logoUrl} alt="Logo" className="h-10 w-10 object-contain rounded-lg bg-slate-50 dark:bg-[#0a0b0d] p-1 border border-slate-200 dark:border-gray-800 flex-shrink-0" />
             ) : (
-              <div className="w-10 h-10 bg-[#cbb26a] text-black font-extrabold rounded-lg flex items-center justify-center text-xl shadow-xs">
+              <div className="w-10 h-10 bg-[#cbb26a] text-black font-extrabold rounded-lg flex items-center justify-center text-xl shadow-xs flex-shrink-0">
                 {currentCompanySettings.companyName.charAt(0)}
               </div>
             )}
-            <div>
-              <h1 className="text-base font-bold leading-tight text-slate-900 dark:text-white tracking-wide">{currentCompanySettings.companyName}</h1>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-base font-bold leading-tight text-slate-900 dark:text-white tracking-wide truncate">{currentCompanySettings.companyName}</h1>
               <p className="text-[11px] text-slate-500 dark:text-gray-400 flex items-center gap-2">
-                {lang === 'ar' ? 'نظام إدارة الأسطول' : 'Fleet Management'}
-                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-[10px] font-bold">
+                <span className="hidden sm:inline">{lang === 'ar' ? 'نظام إدارة الأسطول' : 'Fleet Management'}</span>
+                <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-[10px] font-bold whitespace-nowrap">
                   {profile?.role === 'admin' ? t('roleAdmin', lang) : profile?.role === 'manager' ? t('roleManager', lang) : profile?.role === 'disabled' ? t('roleDisabled', lang) : t('roleUser', lang)}
                 </span>
               </p>
             </div>
-            <div className="hidden sm:block border-s border-slate-200 dark:border-gray-800/80 ps-3 ms-1">
+            <div className="hidden sm:block border-s border-slate-200 dark:border-gray-800/80 ps-3 ms-1 flex-shrink-0">
               <CompanySwitcher
                 companies={companies}
                 activeCompanyId={activeCompanyId}
@@ -613,7 +610,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <OfflineSyncBadge lang={lang} />
 
             <button
@@ -659,7 +656,7 @@ export default function App() {
 
         {/* شريط التبويبات */}
         <div className="hidden lg:block bg-slate-50 dark:bg-[#0a0b0d]/90 border-t border-slate-200 dark:border-gray-800/80 px-4 sm:px-6">
-          <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto py-1.5">
+          <div className="max-w-full flex items-center gap-1 overflow-x-auto py-1.5">
             {navItems.map(item => {
               if (!hasPermission(item.module, 'view')) return null;
               const Icon = item.icon;
@@ -710,7 +707,7 @@ export default function App() {
         )}
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="px-4 sm:px-6 lg:px-8 py-6 max-w-full">
         {!isAllowed && activeTab !== 'dashboard' ? (
           <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/50 rounded-2xl p-8 text-center text-amber-800 dark:text-amber-300">
             <Shield className="w-12 h-12 mx-auto mb-4 text-amber-500" />
