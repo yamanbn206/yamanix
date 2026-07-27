@@ -75,11 +75,10 @@ app.post("/api/admin/create-user", async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // إنشاء المستخدم مع تأكيد البريد الإلكتروني تلقائياً
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true,  // تأكيد تلقائي
+      email_confirm: true,
       user_metadata: { full_name: email.split('@')[0] }
     });
 
@@ -111,7 +110,6 @@ app.post("/api/admin/create-user", async (req, res) => {
 
       if (profileError) {
         console.error('Profile insert error:', profileError);
-        // حذف المستخدم من Auth إذا فشل إدراج الملف الشخصي
         await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
         return res.status(400).json({ error: profileError.message });
       }
@@ -125,50 +123,56 @@ app.post("/api/admin/create-user", async (req, res) => {
 });
 
 // ============================================================
-// نقطة نهاية لحذف مستخدم
+// نقطة نهاية لحذف مستخدم (محسنة)
 // ============================================================
 app.delete("/api/admin/delete-user/:userId", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('No Bearer token provided');
       return res.status(401).json({ error: 'Unauthorized: No token provided' });
     }
 
     const token = authHeader.split(' ')[1];
     const user = await authenticateUser(token);
     if (!user) {
+      console.error('Invalid token');
       return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
 
     const admin = await isAdmin(user.id);
     if (!admin) {
+      console.error('User is not admin:', user.id);
       return res.status(403).json({ error: 'Forbidden: Admin role required' });
     }
 
     const { userId } = req.params;
     if (!userId) {
+      console.error('No userId provided');
       return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // حذف المستخدم من Auth
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (deleteError) {
-      console.error('Delete user error:', deleteError);
-      return res.status(400).json({ error: deleteError.message });
-    }
+    console.log(`Attempting to delete user: ${userId} by admin: ${user.id}`);
 
-    // حذف الملف الشخصي من جدول profiles (اختياري، لأنه سيحذف تلقائياً مع Cascade إذا تم إعداد العلاقة)
-    // لكن يمكننا حذفه يدوياً للتأكد
+    // حذف الملف الشخصي أولاً (لتجنب قيود المفتاح الأجنبي)
     const { error: profileDeleteError } = await supabaseAdmin
       .from('profiles')
       .delete()
       .eq('id', userId);
 
     if (profileDeleteError) {
-      console.warn('Profile deletion warning:', profileDeleteError);
-      // لا نعيد خطأ هنا لأن المستخدم حذف من Auth
+      console.error('Profile deletion error:', profileDeleteError);
+      // لا نوقف التنفيذ هنا، نكمل لحذف من Auth
     }
 
+    // حذف المستخدم من Auth
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (deleteError) {
+      console.error('Auth deletion error:', deleteError);
+      return res.status(400).json({ error: deleteError.message });
+    }
+
+    console.log(`User ${userId} deleted successfully`);
     res.json({ success: true });
   } catch (err: any) {
     console.error('Error deleting user:', err);
@@ -177,7 +181,7 @@ app.delete("/api/admin/delete-user/:userId", async (req, res) => {
 });
 
 // ============================================================
-// نقطة نهاية لإعادة تعيين كلمة المرور (اختياري)
+// نقطة نهاية لإعادة تعيين كلمة المرور
 // ============================================================
 app.post("/api/admin/reset-password", async (req, res) => {
   try {
@@ -202,7 +206,6 @@ app.post("/api/admin/reset-password", async (req, res) => {
       return res.status(400).json({ error: 'Email and new password are required' });
     }
 
-    // البحث عن المستخدم بالبريد الإلكتروني
     const { data: userData, error: findError } = await supabaseAdmin
       .from('profiles')
       .select('id')
@@ -213,7 +216,6 @@ app.post("/api/admin/reset-password", async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // تحديث كلمة المرور
     const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       userData.id,
       { password: newPassword }
@@ -234,18 +236,13 @@ app.post("/api/admin/reset-password", async (req, res) => {
 // ============================================================
 // نقاط AI (مختصرة)
 // ============================================================
-app.post("/api/ai-analysis", async (req, res) => {
-  // ... (كما هو)
+app.post("/api/ai-analysis", (req, res) => {
   res.json({ analysis: "AI analysis placeholder" });
 });
-
-app.post("/api/ai-expense-summary", async (req, res) => {
-  // ... (كما هو)
+app.post("/api/ai-expense-summary", (req, res) => {
   res.json({ summary: "Expense summary placeholder" });
 });
-
-app.post("/api/ocr-scan", async (req, res) => {
-  // ... (كما هو)
+app.post("/api/ocr-scan", (req, res) => {
   res.json({ data: {} });
 });
 

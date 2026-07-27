@@ -144,6 +144,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) throw new Error('No session');
 
+      console.log('Deleting user:', userId);
+      console.log('Token:', session.access_token);
+
       const response = await fetch(`/api/admin/delete-user/${userId}`, {
         method: 'DELETE',
         headers: {
@@ -152,6 +155,9 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
       });
 
       const text = await response.text();
+      console.log('Response status:', response.status);
+      console.log('Response text:', text);
+
       if (!response.ok) {
         let errorMsg = 'Server error';
         try {
