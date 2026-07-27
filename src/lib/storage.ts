@@ -82,24 +82,33 @@ export const storage = {
         .from('companies')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data)) {
-        localStorage.setItem(KEYS.COMPANIES, JSON.stringify(data));
-        return toCamelCase(data);
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        const camelData = toCamelCase(data);
+        localStorage.setItem(KEYS.COMPANIES, JSON.stringify(camelData));
+        return camelData;
       }
     } catch (e) {
-      console.warn('Supabase fetch failed, falling back to localStorage:', e);
+      console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
-    return toCamelCase(JSON.parse(localStorage.getItem(KEYS.COMPANIES) || JSON.stringify(initialCompanies)));
+    // العودة إلى localStorage إذا فشل Supabase
+    const local = JSON.parse(localStorage.getItem(KEYS.COMPANIES) || JSON.stringify(initialCompanies));
+    return Array.isArray(local) ? local : initialCompanies;
   },
 
   saveCompanies: async (companies: Company[]) => {
     if (!Array.isArray(companies)) return;
+    // تحديث localStorage أولاً
     localStorage.setItem(KEYS.COMPANIES, JSON.stringify(companies));
     try {
       const { error } = await supabase
         .from('companies')
         .upsert(toSnakeCase(companies), { onConflict: 'id' });
-      if (error) console.error('❌ Sync companies to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync companies to Supabase failed:', error);
+        // استعادة النسخة الاحتياطية من localStorage في حالة فشل Supabase
+        const fallback = JSON.parse(localStorage.getItem(KEYS.COMPANIES) || JSON.stringify(initialCompanies));
+        localStorage.setItem(KEYS.COMPANIES, JSON.stringify(fallback));
+      }
     } catch (e) {
       console.error('❌ Sync companies error:', e);
     }
@@ -121,24 +130,31 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(KEYS.VEHICLES, JSON.stringify(data));
-        return toCamelCase(data);
+        const camelData = toCamelCase(data);
+        localStorage.setItem(KEYS.VEHICLES, JSON.stringify(camelData));
+        return camelData;
       }
     } catch (e) {
-      console.warn('Supabase fetch failed, falling back to localStorage:', e);
+      console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
     const local = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || JSON.stringify(initialVehicles));
-    return Array.isArray(local) ? toCamelCase(local) : initialVehicles;
+    return Array.isArray(local) ? local : initialVehicles;
   },
 
   saveVehicles: async (vehicles: Vehicle[]) => {
     if (!Array.isArray(vehicles)) return;
+    // تحديث localStorage أولاً (للسرعة)
     localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles));
     try {
       const { error } = await supabase
         .from('vehicles')
         .upsert(toSnakeCase(vehicles), { onConflict: 'id' });
-      if (error) console.error('❌ Sync vehicles to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync vehicles to Supabase failed:', error);
+        // استعادة النسخة الاحتياطية في حالة فشل Supabase
+        const fallback = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || JSON.stringify(initialVehicles));
+        localStorage.setItem(KEYS.VEHICLES, JSON.stringify(fallback));
+      }
     } catch (e) {
       console.error('❌ Sync vehicles error:', e);
     }
@@ -152,14 +168,15 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(KEYS.DRIVERS, JSON.stringify(data));
-        return toCamelCase(data);
+        const camelData = toCamelCase(data);
+        localStorage.setItem(KEYS.DRIVERS, JSON.stringify(camelData));
+        return camelData;
       }
     } catch (e) {
-      console.warn('Supabase fetch failed, falling back to localStorage:', e);
+      console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
     const local = JSON.parse(localStorage.getItem(KEYS.DRIVERS) || JSON.stringify(initialDrivers));
-    return Array.isArray(local) ? toCamelCase(local) : initialDrivers;
+    return Array.isArray(local) ? local : initialDrivers;
   },
 
   saveDrivers: async (drivers: Driver[]) => {
@@ -169,7 +186,11 @@ export const storage = {
       const { error } = await supabase
         .from('drivers')
         .upsert(toSnakeCase(drivers), { onConflict: 'id' });
-      if (error) console.error('❌ Sync drivers to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync drivers to Supabase failed:', error);
+        const fallback = JSON.parse(localStorage.getItem(KEYS.DRIVERS) || JSON.stringify(initialDrivers));
+        localStorage.setItem(KEYS.DRIVERS, JSON.stringify(fallback));
+      }
     } catch (e) {
       console.error('❌ Sync drivers error:', e);
     }
@@ -183,14 +204,15 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(KEYS.GARAGES, JSON.stringify(data));
-        return toCamelCase(data);
+        const camelData = toCamelCase(data);
+        localStorage.setItem(KEYS.GARAGES, JSON.stringify(camelData));
+        return camelData;
       }
     } catch (e) {
-      console.warn('Supabase fetch failed, falling back to localStorage:', e);
+      console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
     const local = JSON.parse(localStorage.getItem(KEYS.GARAGES) || JSON.stringify(initialGarages));
-    return Array.isArray(local) ? toCamelCase(local) : initialGarages;
+    return Array.isArray(local) ? local : initialGarages;
   },
 
   saveGarages: async (garages: Garage[]) => {
@@ -200,7 +222,11 @@ export const storage = {
       const { error } = await supabase
         .from('garages')
         .upsert(toSnakeCase(garages), { onConflict: 'id' });
-      if (error) console.error('❌ Sync garages to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync garages to Supabase failed:', error);
+        const fallback = JSON.parse(localStorage.getItem(KEYS.GARAGES) || JSON.stringify(initialGarages));
+        localStorage.setItem(KEYS.GARAGES, JSON.stringify(fallback));
+      }
     } catch (e) {
       console.error('❌ Sync garages error:', e);
     }
@@ -214,14 +240,15 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(data));
-        return toCamelCase(data);
+        const camelData = toCamelCase(data);
+        localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(camelData));
+        return camelData;
       }
     } catch (e) {
-      console.warn('Supabase fetch failed, falling back to localStorage:', e);
+      console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
     const local = JSON.parse(localStorage.getItem(KEYS.MAINTENANCE) || JSON.stringify(initialMaintenanceRecords));
-    return Array.isArray(local) ? toCamelCase(local) : initialMaintenanceRecords;
+    return Array.isArray(local) ? local : initialMaintenanceRecords;
   },
 
   saveMaintenanceRecords: async (records: MaintenanceRecord[]) => {
@@ -231,7 +258,11 @@ export const storage = {
       const { error } = await supabase
         .from('maintenance_records')
         .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) console.error('❌ Sync maintenance records to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync maintenance records to Supabase failed:', error);
+        const fallback = JSON.parse(localStorage.getItem(KEYS.MAINTENANCE) || JSON.stringify(initialMaintenanceRecords));
+        localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(fallback));
+      }
     } catch (e) {
       console.error('❌ Sync maintenance records error:', e);
     }
@@ -245,14 +276,15 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(KEYS.FUEL, JSON.stringify(data));
-        return toCamelCase(data);
+        const camelData = toCamelCase(data);
+        localStorage.setItem(KEYS.FUEL, JSON.stringify(camelData));
+        return camelData;
       }
     } catch (e) {
-      console.warn('Supabase fetch failed, falling back to localStorage:', e);
+      console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
     const local = JSON.parse(localStorage.getItem(KEYS.FUEL) || JSON.stringify(initialFuelRecords));
-    return Array.isArray(local) ? toCamelCase(local) : initialFuelRecords;
+    return Array.isArray(local) ? local : initialFuelRecords;
   },
 
   saveFuelRecords: async (records: FuelRecord[]) => {
@@ -262,7 +294,11 @@ export const storage = {
       const { error } = await supabase
         .from('fuel_records')
         .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) console.error('❌ Sync fuel records to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync fuel records to Supabase failed:', error);
+        const fallback = JSON.parse(localStorage.getItem(KEYS.FUEL) || JSON.stringify(initialFuelRecords));
+        localStorage.setItem(KEYS.FUEL, JSON.stringify(fallback));
+      }
     } catch (e) {
       console.error('❌ Sync fuel records error:', e);
     }
@@ -276,14 +312,15 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(KEYS.EXPENSES, JSON.stringify(data));
-        return toCamelCase(data);
+        const camelData = toCamelCase(data);
+        localStorage.setItem(KEYS.EXPENSES, JSON.stringify(camelData));
+        return camelData;
       }
     } catch (e) {
-      console.warn('Supabase fetch failed, falling back to localStorage:', e);
+      console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
     const local = JSON.parse(localStorage.getItem(KEYS.EXPENSES) || JSON.stringify(initialExpenseRecords));
-    return Array.isArray(local) ? toCamelCase(local) : initialExpenseRecords;
+    return Array.isArray(local) ? local : initialExpenseRecords;
   },
 
   saveExpenseRecords: async (records: ExpenseRecord[]) => {
@@ -293,7 +330,11 @@ export const storage = {
       const { error } = await supabase
         .from('expenses')
         .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) console.error('❌ Sync expenses to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync expenses to Supabase failed:', error);
+        const fallback = JSON.parse(localStorage.getItem(KEYS.EXPENSES) || JSON.stringify(initialExpenseRecords));
+        localStorage.setItem(KEYS.EXPENSES, JSON.stringify(fallback));
+      }
     } catch (e) {
       console.error('❌ Sync expenses error:', e);
     }
@@ -307,14 +348,15 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(data));
-        return toCamelCase(data);
+        const camelData = toCamelCase(data);
+        localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(camelData));
+        return camelData;
       }
     } catch (e) {
-      console.warn('Supabase fetch failed, falling back to localStorage:', e);
+      console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
     const local = JSON.parse(localStorage.getItem(KEYS.CHECKOUTS) || JSON.stringify(initialCheckoutSessions));
-    return Array.isArray(local) ? toCamelCase(local) : initialCheckoutSessions;
+    return Array.isArray(local) ? local : initialCheckoutSessions;
   },
 
   saveCheckoutSessions: async (sessions: CheckoutSession[]) => {
@@ -324,7 +366,11 @@ export const storage = {
       const { error } = await supabase
         .from('checkout_sessions')
         .upsert(toSnakeCase(sessions), { onConflict: 'id' });
-      if (error) console.error('❌ Sync checkout sessions to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync checkout sessions to Supabase failed:', error);
+        const fallback = JSON.parse(localStorage.getItem(KEYS.CHECKOUTS) || JSON.stringify(initialCheckoutSessions));
+        localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(fallback));
+      }
     } catch (e) {
       console.error('❌ Sync checkout sessions error:', e);
     }
@@ -354,14 +400,15 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && Array.isArray(data) && data.length > 0) {
-        localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(data));
-        return toCamelCase(data);
+        const camelData = toCamelCase(data);
+        localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(camelData));
+        return camelData;
       }
     } catch (e) {
-      console.warn('Supabase fetch failed, falling back to localStorage:', e);
+      console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
     const local = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || JSON.stringify(initialCompanyDocuments));
-    return Array.isArray(local) ? toCamelCase(local) : initialCompanyDocuments;
+    return Array.isArray(local) ? local : initialCompanyDocuments;
   },
 
   saveDocuments: async (docs: CompanyDocument[]) => {
@@ -371,7 +418,11 @@ export const storage = {
       const { error } = await supabase
         .from('documents')
         .upsert(toSnakeCase(docs), { onConflict: 'id' });
-      if (error) console.error('❌ Sync documents to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync documents to Supabase failed:', error);
+        const fallback = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || JSON.stringify(initialCompanyDocuments));
+        localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(fallback));
+      }
     } catch (e) {
       console.error('❌ Sync documents error:', e);
     }

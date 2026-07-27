@@ -27,6 +27,9 @@ interface PrintReportsViewProps {
   lang?: 'ar' | 'en';
 }
 
+// جميع النصوص في التقارير ستكون باللغة الإنجليزية فقط
+const REPORT_LANG = 'en';
+
 export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
   settings,
   vehicles,
@@ -37,7 +40,7 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
   activeReceiptSession,
   onClearReceiptSession,
   onSaveSettings,
-  lang = 'en'  // <-- اللغة الافتراضية دائماً إنجليزية
+  lang = REPORT_LANG
 }) => {
   const [reportType, setReportType] = useState<'checkout_receipt' | 'fleet_summary' | 'maintenance_audit' | 'expiries_audit' | 'fuel_summary' | 'ai_cost_summary'>(
     activeReceiptSession ? 'checkout_receipt' : 'fleet_summary'
@@ -47,52 +50,18 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
     activeReceiptSession ? activeReceiptSession.id : (checkouts[0]?.id || '')
   );
 
-  // Header Customization State
-  const [headerStyle, setHeaderStyle] = useState<'classic' | 'centered' | 'enterprise'>('classic');
-  const [customReportTitle, setCustomReportTitle] = useState<string>('');
-  const [customHeaderNote, setCustomHeaderNote] = useState<string>('');
-  const [showLogo, setShowLogo] = useState<boolean>(true);
-  const [showTagline, setShowTagline] = useState<boolean>(true);
-  const [showContacts, setShowContacts] = useState<boolean>(true);
-  const [showTaxReg, setShowTaxReg] = useState<boolean>(true);
-  const [showPrintDate, setShowPrintDate] = useState<boolean>(true);
-  const [showHeaderNote, setShowHeaderNote] = useState<boolean>(true);
-
-  const [showCustomizePanel, setShowCustomizePanel] = useState<boolean>(false);
-  const [isEditingCompanyInfo, setIsEditingCompanyInfo] = useState<boolean>(false);
-
-  const [localSettings, setLocalSettings] = useState<CompanySettings>({ ...settings });
-  const [settingsSavedSuccess, setSettingsSavedSuccess] = useState<boolean>(false);
-
-  useEffect(() => {
-    setLocalSettings({ ...settings });
-  }, [settings]);
-
-  const handleSaveCompanyInfo = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (onSaveSettings) {
-      onSaveSettings(localSettings);
-    }
-    setSettingsSavedSuccess(true);
-    setTimeout(() => setSettingsSavedSuccess(false), 3000);
-  };
-
   // Filter States
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [selectedDriverId, setSelectedDriverId] = useState<string>('all');
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('all');
 
-  const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
-  const [focusMode, setFocusMode] = useState<boolean>(false);
-
-  // AI 3-Month Expense Analysis States
   const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [aiStats, setAiStats] = useState<any | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [copiedSummary, setCopiedSummary] = useState<boolean>(false);
 
+  // 3-Month Metrics
   const ninetyDaysAgoStr = useMemo(() => {
     const d = new Date();
     d.setDate(d.getDate() - 90);
@@ -129,7 +98,7 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
           maintenance,
           fuel,
           drivers,
-          lang: 'en'  // <-- إجبار التقرير على الإنجليزية
+          lang: 'en'
         })
       });
       const data = await res.json();
@@ -137,7 +106,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
         throw new Error(data.error || 'Failed to generate AI analysis report.');
       }
       setAiSummary(data.summary);
-      setAiStats(data.stats);
     } catch (err: any) {
       console.error("AI Expense Analysis Error:", err);
       setAnalysisError(err.message || 'Error connecting to AI service.');
@@ -166,6 +134,7 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
 
   const hasActiveFilters = startDate !== '' || endDate !== '' || selectedDriverId !== 'all' || selectedVehicleId !== 'all';
 
+  // Filtered Data
   const filteredCheckouts = useMemo(() => {
     return checkouts.filter(c => {
       const dateVal = c.checkoutTime.slice(0, 10);
@@ -189,7 +158,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
         const veh = vehicles.find(v => v.id === m.vehicleId);
         matchesDriver = veh?.assignedDriverId === selectedDriverId;
       }
-
       return matchesStart && matchesEnd && matchesVehicle && matchesDriver;
     });
   }, [maintenance, startDate, endDate, selectedVehicleId, selectedDriverId, vehicles]);
@@ -213,40 +181,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
     });
   }, [vehicles, selectedVehicleId, selectedDriverId]);
 
-  const maintenanceComparisonData = useMemo(() => {
-    return filteredVehicles.map(v => {
-      const vMaint = filteredMaintenance.filter(m => m.vehicleId === v.id);
-      const periodicCost = vMaint.filter(m => m.type === 'periodic').reduce((sum, m) => sum + m.totalCost, 0);
-      const breakdownCost = vMaint.filter(m => m.type !== 'periodic').reduce((sum, m) => sum + m.totalCost, 0);
-      const totalCost = periodicCost + breakdownCost;
-      
-      const periodicPercentage = totalCost > 0 ? Math.round((periodicCost / totalCost) * 100) : 0;
-      const breakdownPercentage = totalCost > 0 ? Math.round((breakdownCost / totalCost) * 100) : 0;
-
-      return {
-        id: v.id,
-        vehicleName: `${v.make} ${v.model}`,
-        plateNumber: v.plateNumber,
-        label: `${v.make} (${v.plateNumber})`,
-        periodicCost,
-        breakdownCost,
-        totalCost,
-        periodicPercentage,
-        breakdownPercentage
-      };
-    });
-  }, [filteredVehicles, filteredMaintenance]);
-
-  const totalPeriodicAll = useMemo(() => {
-    return maintenanceComparisonData.reduce((sum, d) => sum + d.periodicCost, 0);
-  }, [maintenanceComparisonData]);
-
-  const totalBreakdownAll = useMemo(() => {
-    return maintenanceComparisonData.reduce((sum, d) => sum + d.breakdownCost, 0);
-  }, [maintenanceComparisonData]);
-
-  const totalMaintenanceAll = totalPeriodicAll + totalBreakdownAll;
-
   const selectedSession = filteredCheckouts.find(c => c.id === selectedSessionId) || checkouts.find(c => c.id === selectedSessionId) || activeReceiptSession || filteredCheckouts[0] || checkouts[0];
 
   const handleExportCSV = () => {
@@ -257,151 +191,54 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
     else exportVehiclesToCSV(filteredVehicles, drivers);
   };
 
-  // Reusable Customizable Header Renderer (جميع النصوص بالإنجليزية)
-  const renderCustomHeader = () => {
-    const company = localSettings.companyName || settings.companyName;
-    const tagline = localSettings.tagline || settings.tagline;
-    const logo = localSettings.logoUrl !== undefined ? localSettings.logoUrl : settings.logoUrl;
-    const phone = localSettings.phone || settings.phone;
-    const email = localSettings.email || settings.email;
-    const address = localSettings.address || settings.address;
-    const cr = localSettings.commercialRegNumber || settings.commercialRegNumber;
+  // Reusable Header Renderer (all in English)
+  const renderHeader = () => {
+    const company = settings.companyName || 'Company';
+    const tagline = settings.tagline || '';
+    const logo = settings.logoUrl || '';
+    const phone = settings.phone || '';
+    const email = settings.email || '';
+    const address = settings.address || '';
+    const cr = settings.commercialRegNumber || '';
 
-    if (headerStyle === 'centered') {
-      return (
-        <div className="border-b-2 border-slate-900 pb-4 text-center space-y-3">
-          {showLogo && (
-            <div className="flex justify-center">
-              {logo ? (
-                <img src={logo} alt="Logo" className="max-h-16 max-w-[160px] object-contain border p-1 rounded-lg shadow-xs" />
-              ) : (
-                <div className="w-14 h-14 bg-slate-900 text-white font-black rounded-xl flex items-center justify-center text-2xl shadow-sm">
-                  {company.charAt(0)}
-                </div>
-              )}
-            </div>
-          )}
-          
-          <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">{company}</h1>
-            {showTagline && tagline && (
-              <p className="text-xs font-semibold text-slate-600 mt-0.5">{tagline}</p>
-            )}
-            {showTaxReg && cr && (
-              <p className="text-[11px] font-mono font-medium text-slate-500 mt-1 inline-block px-2.5 py-0.5 bg-slate-100 rounded border border-slate-200">
-                CR / Tax Reg No: {cr}
-              </p>
-            )}
-          </div>
-
-          {showContacts && (
-            <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-mono text-slate-600 pt-1 border-t border-slate-200">
-              {phone && <span>📞 {phone}</span>}
-              {email && <span>✉️ {email}</span>}
-              {address && <span>📍 {address}</span>}
-              {showPrintDate && <span>📅 Date: {new Date().toLocaleDateString('en-US')}</span>}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    if (headerStyle === 'enterprise') {
-      return (
-        <div className="border border-slate-900 rounded-xl p-4 bg-slate-900 text-white shadow-sm space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-            <div className="flex items-center gap-3">
-              {showLogo && (
-                logo ? (
-                  <img src={logo} alt="Logo" className="max-h-14 max-w-[120px] object-contain bg-white p-1 rounded-lg" />
-                ) : (
-                  <div className="w-12 h-12 bg-amber-500 text-slate-950 font-black rounded-lg flex items-center justify-center text-xl shadow">
-                    {company.charAt(0)}
-                  </div>
-                )
-              )}
-              <div>
-                <h1 className="text-lg font-black text-white tracking-wide">{company}</h1>
-                {showTagline && tagline && (
-                  <p className="text-xs text-amber-400 font-medium">{tagline}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="text-right font-mono text-xs text-slate-300">
-              <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full font-bold text-[10px] inline-block mb-1">
-                OFFICIAL FLEET AUDIT
-              </span>
-              {showPrintDate && <p className="text-[11px]">Print Date: {new Date().toLocaleDateString('en-US')}</p>}
-            </div>
-          </div>
-
-          {(showContacts || showTaxReg) && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-[11px] font-mono text-slate-300 pt-1">
-              {showTaxReg && cr && <div><span className="text-slate-400 block text-[9px] uppercase">CR/Tax ID</span><strong>{cr}</strong></div>}
-              {showContacts && phone && <div><span className="text-slate-400 block text-[9px] uppercase">Phone</span><strong>{phone}</strong></div>}
-              {showContacts && email && <div><span className="text-slate-400 block text-[9px] uppercase">Email</span><strong>{email}</strong></div>}
-              {showContacts && address && <div><span className="text-slate-400 block text-[9px] uppercase">HQ Address</span><strong>{address}</strong></div>}
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    // Classic Split Layout (Default)
     return (
       <div className="border-b-2 border-slate-900 pb-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {showLogo && (
-            logo ? (
-              <img src={logo} alt="Logo" className="max-h-16 max-w-[120px] object-contain border p-1 rounded" />
-            ) : (
-              <div className="w-12 h-12 bg-slate-900 text-white font-bold rounded flex items-center justify-center text-xl">
-                {company.charAt(0)}
-              </div>
-            )
+          {logo ? (
+            <img src={logo} alt="Logo" className="max-h-16 max-w-[120px] object-contain border p-1 rounded" />
+          ) : (
+            <div className="w-12 h-12 bg-slate-900 text-white font-bold rounded flex items-center justify-center text-xl">
+              {company.charAt(0)}
+            </div>
           )}
           <div>
             <h1 className="text-xl font-black text-slate-900">{company}</h1>
-            {showTagline && tagline && <p className="text-xs text-slate-600 font-medium">{tagline}</p>}
-            {showTaxReg && cr && <p className="text-[10px] text-slate-500 font-mono mt-0.5">CR/Tax ID: {cr}</p>}
+            {tagline && <p className="text-xs text-slate-600 font-medium">{tagline}</p>}
+            {cr && <p className="text-[10px] text-slate-500 font-mono mt-0.5">CR/Tax ID: {cr}</p>}
           </div>
         </div>
 
-        {showContacts && (
-          <div className="text-right text-xs text-slate-600 space-y-0.5 font-mono">
-            {showPrintDate && <p><strong>Print Date:</strong> {new Date().toLocaleDateString('en-US')}</p>}
-            {phone && <p><strong>Phone:</strong> {phone}</p>}
-            {email && <p><strong>Email:</strong> {email}</p>}
-            {address && <p className="text-[10px] text-slate-400">{address}</p>}
-          </div>
-        )}
+        <div className="text-right text-xs text-slate-600 space-y-0.5 font-mono">
+          <p><strong>Print Date:</strong> {new Date().toLocaleDateString('en-US')}</p>
+          {phone && <p><strong>Phone:</strong> {phone}</p>}
+          {email && <p><strong>Email:</strong> {email}</p>}
+          {address && <p className="text-[10px] text-slate-400">{address}</p>}
+        </div>
       </div>
     );
   };
 
-  // Reusable Printable Report Renderer (جميع النصوص بالإنجليزية)
   const renderReportContent = () => {
-    const activeHeaderNote = customHeaderNote || localSettings.printHeaderNote || settings.printHeaderNote;
-
     return (
       <div className="printable-document bg-white text-slate-900 border border-slate-300 rounded-2xl p-8 shadow-lg max-w-4xl mx-auto space-y-6 dir-ltr text-left">
-        {/* Dynamic Company Header with Customizable Branding */}
-        {renderCustomHeader()}
+        {renderHeader()}
 
-        {/* Header Note */}
-        {((showHeaderNote && activeHeaderNote) || hasActiveFilters) && (
-          <div className="bg-slate-50 p-2.5 text-center text-xs text-slate-700 border border-slate-200 rounded space-y-1">
-            {showHeaderNote && activeHeaderNote && <p className="italic">"{activeHeaderNote}"</p>}
-            {hasActiveFilters && (
-              <p className="font-bold text-blue-700 font-mono text-[11px]">
-                Filters Applied ({startDate ? `From ${startDate} ` : ''}{endDate ? `To ${endDate} ` : ''}{selectedDriverId !== 'all' ? `• Driver: ${drivers.find(d=>d.id===selectedDriverId)?.name} ` : ''}{selectedVehicleId !== 'all' ? `• Vehicle: ${vehicles.find(v=>v.id===selectedVehicleId)?.make} ${vehicles.find(v=>v.id===selectedVehicleId)?.plateNumber}` : ''})
-              </p>
-            )}
+        {settings.printHeaderNote && (
+          <div className="bg-slate-50 p-2.5 text-center text-xs text-slate-700 border border-slate-200 rounded">
+            <p className="italic">"{settings.printHeaderNote}"</p>
           </div>
         )}
 
-        {/* 1. CHECKOUT RECEIPT REPORT */}
         {reportType === 'checkout_receipt' && selectedSession && (
           <div className="space-y-6">
             <div className="text-center border-b pb-2 border-slate-200">
@@ -502,7 +339,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
           </div>
         )}
 
-        {/* 2. FLEET SUMMARY REPORT */}
         {reportType === 'fleet_summary' && (
           <div className="space-y-4">
             <div className="text-center border-b pb-2 border-slate-200">
@@ -544,45 +380,11 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
           </div>
         )}
 
-        {/* 3. MAINTENANCE AUDIT REPORT */}
         {reportType === 'maintenance_audit' && (
           <div className="space-y-6">
             <div className="text-center border-b pb-3 border-slate-200">
               <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">MAINTENANCE EXPENSE & REPAIR AUDIT REPORT</h2>
-              <p className="text-xs text-slate-500">Invoices Analyzed: {filteredMaintenance.length} | Total Cost: {formatCurrency(totalMaintenanceAll, settings.currency, 'en')}</p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-600 block">Total Maintenance Spend</span>
-                  <span className="text-base font-black text-slate-900 font-mono">{formatCurrency(totalMaintenanceAll, settings.currency, 'en')}</span>
-                </div>
-              </div>
-
-              <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-emerald-800 block">Periodic Maintenance</span>
-                  <span className="text-base font-black text-emerald-700 font-mono">
-                    {formatCurrency(totalPeriodicAll, settings.currency, 'en')}
-                    <span className="text-[10px] font-normal ml-1 text-emerald-600">
-                      ({totalMaintenanceAll > 0 ? Math.round((totalPeriodicAll / totalMaintenanceAll) * 100) : 0}%)
-                    </span>
-                  </span>
-                </div>
-              </div>
-
-              <div className="bg-rose-50 border border-rose-200 p-3.5 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-rose-800 block">Emergency Breakdowns</span>
-                  <span className="text-base font-black text-rose-700 font-mono">
-                    {formatCurrency(totalBreakdownAll, settings.currency, 'en')}
-                    <span className="text-[10px] font-normal ml-1 text-rose-600">
-                      ({totalMaintenanceAll > 0 ? Math.round((totalBreakdownAll / totalMaintenanceAll) * 100) : 0}%)
-                    </span>
-                  </span>
-                </div>
-              </div>
+              <p className="text-xs text-slate-500">Invoices Analyzed: {filteredMaintenance.length}</p>
             </div>
 
             <table className="w-full text-left text-xs border border-slate-300">
@@ -624,12 +426,11 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
           </div>
         )}
 
-        {/* 4. FUEL SUMMARY REPORT */}
         {reportType === 'fuel_summary' && (
           <div className="space-y-4">
             <div className="text-center border-b pb-2 border-slate-200">
               <h2 className="text-lg font-bold text-slate-900 uppercase tracking-wide">FUEL EXPENSES & REFUELING AUDIT REPORT</h2>
-              <p className="text-xs text-slate-500 font-mono">Total Refueling Transactions: {filteredFuel.length} | Total Spend: {formatCurrency(filteredFuel.reduce((sum, f) => sum + f.totalCost, 0), settings.currency, 'en')}</p>
+              <p className="text-xs text-slate-500 font-mono">Total Refueling Transactions: {filteredFuel.length}</p>
             </div>
 
             <table className="w-full text-left text-xs border border-slate-300">
@@ -665,7 +466,6 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
           </div>
         )}
 
-        {/* 5. EXPIRIES AUDIT REPORT */}
         {reportType === 'expiries_audit' && (
           <div className="space-y-4">
             <div className="text-center border-b pb-2 border-slate-200">
@@ -702,11 +502,10 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
           </div>
         )}
 
-        {/* 6. AI 3-MONTH EXPENSE & COST-SAVING REPORT */}
         {reportType === 'ai_cost_summary' && (
           <div className="space-y-5">
             <div className="text-center border-b pb-3 border-slate-200">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded-full text-xs font-bold mb-1">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold mb-1">
                 <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
                 AI-Powered Cost-Optimization Report
               </div>
@@ -747,76 +546,25 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
                 <p className="text-xs font-bold text-blue-900">
                   Analyzing last 3 months of vehicle maintenance, fuel logs, and spare parts...
                 </p>
-                <p className="text-[11px] text-slate-500">
-                  Gemini 3.6 Flash is calculating cost driver patterns and identifying savings opportunities.
-                </p>
               </div>
             ) : analysisError ? (
               <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 flex items-center justify-between">
                 <p><strong>Analysis Error:</strong> {analysisError}</p>
-                <button
-                  onClick={handleRunAiExpenseSummary}
-                  className="px-3 py-1.5 bg-rose-600 text-white rounded font-bold hover:bg-rose-700 transition"
-                >
-                  Retry Analysis
-                </button>
+                <button onClick={handleRunAiExpenseSummary} className="px-3 py-1.5 bg-rose-600 text-white rounded font-bold hover:bg-rose-700 transition">Retry</button>
               </div>
             ) : aiSummary ? (
               <div className="space-y-4">
                 <div className="flex justify-end gap-2 no-print">
-                  <button
-                    onClick={handleCopySummary}
-                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs transition flex items-center gap-1.5"
-                  >
+                  <button onClick={handleCopySummary} className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded text-xs transition flex items-center gap-1.5">
                     {copiedSummary ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                     {copiedSummary ? 'Copied!' : 'Copy Summary'}
                   </button>
-                  <button
-                    onClick={handleRunAiExpenseSummary}
-                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    Re-Analyze
+                  <button onClick={handleRunAiExpenseSummary} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded text-xs transition flex items-center gap-1.5">
+                    <RotateCcw className="w-3.5 h-3.5" /> Re-Analyze
                   </button>
                 </div>
-
-                <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-sm space-y-3 text-xs leading-relaxed text-slate-800 dir-ltr text-left">
-                  {aiSummary.split('\n').map((line, idx) => {
-                    const trimmed = line.trim();
-                    if (!trimmed) return <div key={idx} className="h-1" />;
-                    if (trimmed.startsWith('#') || trimmed.startsWith('1.') || trimmed.startsWith('2.') || trimmed.startsWith('3.')) {
-                      return (
-                        <h3 key={idx} className="font-extrabold text-sm text-slate-900 border-b pb-1 mt-3 text-blue-900 flex items-center gap-1.5">
-                          {trimmed.replace(/^[#\d\.\s]+/, '')}
-                        </h3>
-                      );
-                    }
-                    if (trimmed.startsWith('-') || trimmed.startsWith('*') || trimmed.startsWith('•')) {
-                      return (
-                        <div key={idx} className="flex items-start gap-2 pl-2 py-0.5">
-                          <span className="text-emerald-600 font-bold text-base leading-none">•</span>
-                          <p className="flex-1">
-                            {trimmed.replace(/^[-*•]\s*/, '').split(/(\*\*.*?\*\*)/).map((part, pIdx) => {
-                              if (part.startsWith('**') && part.endsWith('**')) {
-                                return <strong key={pIdx} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
-                              }
-                              return part;
-                            })}
-                          </p>
-                        </div>
-                      );
-                    }
-                    return (
-                      <p key={idx} className="text-slate-700">
-                        {trimmed.split(/(\*\*.*?\*\*)/).map((part, pIdx) => {
-                          if (part.startsWith('**') && part.endsWith('**')) {
-                            return <strong key={pIdx} className="font-bold text-slate-900">{part.slice(2, -2)}</strong>;
-                          }
-                          return part;
-                        })}
-                      </p>
-                    );
-                  })}
+                <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-sm space-y-3 text-xs leading-relaxed text-slate-800 dir-ltr text-left whitespace-pre-wrap">
+                  {aiSummary}
                 </div>
               </div>
             ) : (
@@ -827,23 +575,17 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
                 <div>
                   <h3 className="font-bold text-slate-900 text-sm">Generate AI Cost-Saving Analysis Report</h3>
                   <p className="text-xs text-slate-600 max-w-md mx-auto mt-1">
-                    Analyze the last 90 days of vehicle repair bills, fuel refill logs, and driver breakdown frequencies to uncover immediate savings opportunities.
+                    Analyze the last 90 days of vehicle repair bills, fuel refill logs, and driver breakdown frequencies.
                   </p>
                 </div>
-                <button
-                  onClick={handleRunAiExpenseSummary}
-                  disabled={isAnalyzing}
-                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs shadow-md transition inline-flex items-center gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Generate 3-Month AI Analysis
+                <button onClick={handleRunAiExpenseSummary} className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl text-xs shadow-md transition inline-flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" /> Generate 3-Month AI Analysis
                 </button>
               </div>
             )}
           </div>
         )}
 
-        {/* Footer Note */}
         <div className="border-t border-slate-300 pt-4 text-center text-[10px] text-slate-500 font-mono">
           <p>{settings.printFooterNote || `${settings.companyName} • Official Fleet Management Report`}</p>
         </div>
@@ -853,508 +595,62 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      {/* Top Controls Bar */}
       <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Printer className="w-6 h-6 text-blue-400" />
             Print Reports & Receipts Generator
-            <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-mono rounded-full font-bold">
-              EN Standard Output
-            </span>
+            <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-mono rounded-full font-bold">EN Standard Output</span>
           </h2>
-          <p className="text-slate-300 text-xs mt-1">
-            Generate and export official handover receipts, fleet summaries, maintenance cost audits, and compliance reports with customizable company branding.
-          </p>
+          <p className="text-slate-300 text-xs mt-1">Generate and export official handover receipts, fleet summaries, and cost audits.</p>
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCustomizePanel(!showCustomizePanel)}
-            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold rounded-xl text-xs shadow transition flex items-center gap-1.5"
-          >
-            <Sliders className="w-4 h-4 text-amber-400" />
-            {showCustomizePanel ? 'Hide Header Options' : 'Customize Header'}
+          <button onClick={handleExportCSV} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow transition flex items-center gap-1.5">
+            <Download className="w-4 h-4" /> Export CSV
           </button>
-          <button
-            onClick={handleExportCSV}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow transition flex items-center gap-1.5"
-          >
-            <Download className="w-4 h-4" />
-            Export CSV
-          </button>
-          <button
-            onClick={handlePrint}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl text-xs shadow-md transition flex items-center gap-2"
-          >
-            <Printer className="w-4 h-4" />
-            Print / PDF Export
+          <button onClick={handlePrint} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl text-xs shadow-md transition flex items-center gap-2">
+            <Printer className="w-4 h-4" /> Print / PDF Export
           </button>
         </div>
       </div>
 
-      {/* Customizable Header & Branding Controls Panel */}
-      <div className="bg-[#0f1115] border border-slate-800 rounded-2xl p-5 shadow-sm space-y-4 no-print text-white">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                Customizable Report Header & Branding
-                <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] rounded-full font-mono font-bold">
-                  {localSettings.companyName || settings.companyName}
-                </span>
-              </h3>
-              <p className="text-xs text-slate-400">
-                Pulls company name, logo, tax ID, and contact details directly from CompanySettings for professionally branded exports.
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowCustomizePanel(!showCustomizePanel)}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs transition flex items-center gap-1.5 self-start sm:self-auto"
-          >
-            <Settings className="w-3.5 h-3.5 text-amber-400" />
-            {showCustomizePanel ? 'Collapse Controls' : 'Header Controls & Settings'}
-            {showCustomizePanel ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-        </div>
-
-        {/* Collapsible Customization Options */}
-        {showCustomizePanel && (
-          <div className="space-y-5 pt-1 text-xs">
-            {/* Header Layout Picker */}
-            <div className="space-y-2">
-              <label className="font-bold text-slate-300 block flex items-center gap-1.5">
-                <Layout className="w-3.5 h-3.5 text-blue-400" />
-                Select Header Layout Style:
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setHeaderStyle('classic')}
-                  className={`p-3 rounded-xl border text-left transition space-y-1 ${
-                    headerStyle === 'classic'
-                      ? 'bg-blue-950/60 border-blue-500 text-white ring-2 ring-blue-500/30'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="font-bold text-xs block text-white flex items-center justify-between">
-                    1. Classic Split
-                    {headerStyle === 'classic' && <Check className="w-3.5 h-3.5 text-blue-400" />}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block">Logo & Company on Left | Phone, Email & Address on Right</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setHeaderStyle('centered')}
-                  className={`p-3 rounded-xl border text-left transition space-y-1 ${
-                    headerStyle === 'centered'
-                      ? 'bg-blue-950/60 border-blue-500 text-white ring-2 ring-blue-500/30'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="font-bold text-xs block text-white flex items-center justify-between">
-                    2. Modern Centered
-                    {headerStyle === 'centered' && <Check className="w-3.5 h-3.5 text-blue-400" />}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block">Top Centered Logo, Prominent Title & Horizontal Contact Bar</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setHeaderStyle('enterprise')}
-                  className={`p-3 rounded-xl border text-left transition space-y-1 ${
-                    headerStyle === 'enterprise'
-                      ? 'bg-blue-950/60 border-blue-500 text-white ring-2 ring-blue-500/30'
-                      : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
-                  }`}
-                >
-                  <span className="font-bold text-xs block text-white flex items-center justify-between">
-                    3. Enterprise Banner
-                    {headerStyle === 'enterprise' && <Check className="w-3.5 h-3.5 text-blue-400" />}
-                  </span>
-                  <span className="text-[10px] text-slate-400 block">High-Contrast Dark Banner with Gold Badge & 4-Column Grid</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Custom Titles and Notes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
-              <div>
-                <label className="font-semibold text-slate-300 block mb-1">
-                  Custom Report Title Override (Optional):
-                </label>
-                <input
-                  type="text"
-                  value={customReportTitle}
-                  onChange={e => setCustomReportTitle(e.target.value)}
-                  placeholder="e.g. Q3 2026 Executive Fleet Operations Audit"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-400 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-slate-300 block mb-1">
-                  Custom Header Note / Disclaimer Override:
-                </label>
-                <input
-                  type="text"
-                  value={customHeaderNote}
-                  onChange={e => setCustomHeaderNote(e.target.value)}
-                  placeholder={localSettings.printHeaderNote || "e.g. Official Fleet Document • Retention Required"}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-white text-xs focus:border-amber-400 outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Visibility Element Toggles */}
-            <div className="space-y-2">
-              <label className="font-bold text-slate-300 block">
-                Header Element Visibility Toggles:
-              </label>
-              <div className="flex flex-wrap items-center gap-4 bg-slate-900/80 p-3 rounded-xl border border-slate-800 text-xs">
-                <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                  <input
-                    type="checkbox"
-                    checked={showLogo}
-                    onChange={e => setShowLogo(e.target.checked)}
-                    className="accent-amber-400 rounded"
-                  />
-                  <span>Company Logo</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                  <input
-                    type="checkbox"
-                    checked={showTagline}
-                    onChange={e => setShowTagline(e.target.checked)}
-                    className="accent-amber-400 rounded"
-                  />
-                  <span>Tagline</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                  <input
-                    type="checkbox"
-                    checked={showContacts}
-                    onChange={e => setShowContacts(e.target.checked)}
-                    className="accent-amber-400 rounded"
-                  />
-                  <span>Contact Info (Phone/Email/Address)</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                  <input
-                    type="checkbox"
-                    checked={showTaxReg}
-                    onChange={e => setShowTaxReg(e.target.checked)}
-                    className="accent-amber-400 rounded"
-                  />
-                  <span>CR / Tax ID</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                  <input
-                    type="checkbox"
-                    checked={showPrintDate}
-                    onChange={e => setShowPrintDate(e.target.checked)}
-                    className="accent-amber-400 rounded"
-                  />
-                  <span>Print Date</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
-                  <input
-                    type="checkbox"
-                    checked={showHeaderNote}
-                    onChange={e => setShowHeaderNote(e.target.checked)}
-                    className="accent-amber-400 rounded"
-                  />
-                  <span>Header Note</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Quick Edit Company Profile Accordion */}
-            <div className="border border-slate-800 rounded-xl overflow-hidden bg-slate-950">
-              <button
-                type="button"
-                onClick={() => setIsEditingCompanyInfo(!isEditingCompanyInfo)}
-                className="w-full px-4 py-2.5 bg-slate-900 hover:bg-slate-850 text-left flex items-center justify-between text-xs font-bold text-white transition"
-              >
-                <span className="flex items-center gap-2">
-                  <Edit3 className="w-4 h-4 text-amber-400" />
-                  Quick Edit Company Profile & Logo Settings
-                </span>
-                <span className="text-[10px] text-amber-400 font-mono">
-                  {isEditingCompanyInfo ? 'Collapse Company Form ▲' : 'Edit Company Info ▼'}
-                </span>
-              </button>
-
-              {isEditingCompanyInfo && (
-                <form onSubmit={handleSaveCompanyInfo} className="p-4 space-y-4 border-t border-slate-800">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Company Name</label>
-                      <input
-                        type="text"
-                        value={localSettings.companyName}
-                        onChange={e => setLocalSettings({ ...localSettings, companyName: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Company Tagline</label>
-                      <input
-                        type="text"
-                        value={localSettings.tagline}
-                        onChange={e => setLocalSettings({ ...localSettings, tagline: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">CR / Tax Registration ID</label>
-                      <input
-                        type="text"
-                        value={localSettings.commercialRegNumber}
-                        onChange={e => setLocalSettings({ ...localSettings, commercialRegNumber: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Phone Number</label>
-                      <input
-                        type="text"
-                        value={localSettings.phone}
-                        onChange={e => setLocalSettings({ ...localSettings, phone: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Email Address</label>
-                      <input
-                        type="text"
-                        value={localSettings.email}
-                        onChange={e => setLocalSettings({ ...localSettings, email: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Address / Location</label>
-                      <input
-                        type="text"
-                        value={localSettings.address}
-                        onChange={e => setLocalSettings({ ...localSettings, address: e.target.value })}
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs"
-                      />
-                    </div>
-
-                    <div className="sm:col-span-2 md:col-span-3">
-                      <label className="text-[11px] font-semibold text-slate-400 block mb-1">Company Logo Image URL</label>
-                      <input
-                        type="text"
-                        value={localSettings.logoUrl}
-                        onChange={e => setLocalSettings({ ...localSettings, logoUrl: e.target.value })}
-                        placeholder="https://..."
-                        className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-700 rounded text-white text-xs font-mono"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                    <p className="text-[10px] text-slate-400">
-                      Changes automatically reflect in the live document header below. Save to persist to Company Settings.
-                    </p>
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold rounded-lg text-xs transition flex items-center gap-1.5 shadow"
-                    >
-                      <Save className="w-3.5 h-3.5" />
-                      {settingsSavedSuccess ? 'Saved to System Settings!' : 'Save to Company Settings'}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* AI Expense Summary Quick Tool Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 border border-blue-800/60 rounded-2xl p-5 text-white shadow-lg space-y-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm text-white flex items-center gap-2">
-                AI 3-Month Vehicle Expense & Cost-Saving Analyzer
-                <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] rounded-full font-mono font-bold">
-                  Last 90 Days
-                </span>
-              </h3>
-              <p className="text-slate-300 text-xs">
-                Analyzes vehicle maintenance bills and fuel logs to provide actionable cost-reduction strategies.
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => {
-              setReportType('ai_cost_summary');
-              if (!aiSummary && !isAnalyzing) {
-                handleRunAiExpenseSummary();
-              }
-            }}
-            disabled={isAnalyzing}
-            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs rounded-xl shadow transition flex items-center gap-2 shrink-0 disabled:opacity-50"
-          >
-            {isAnalyzing ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Analyzing Expenses...
-              </>
-            ) : (
-              <>
-                <TrendingDown className="w-4 h-4 text-emerald-200" />
-                {aiSummary ? 'View AI Cost Report' : 'Analyze 3M Expenses'}
-              </>
-            )}
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 text-xs font-mono">
-          <div>
-            <span className="text-slate-400 block text-[10px]">3M Maintenance:</span>
-            <span className="font-extrabold text-blue-400">{formatCurrency(recent3MaintCost, settings.currency, 'en')}</span>
-          </div>
-          <div>
-            <span className="text-slate-400 block text-[10px]">3M Fuel Total:</span>
-            <span className="font-extrabold text-amber-400">{formatCurrency(recent3FuelCost, settings.currency, 'en')}</span>
-          </div>
-          <div>
-            <span className="text-slate-400 block text-[10px]">Combined 3M Spend:</span>
-            <span className="font-extrabold text-emerald-400">{formatCurrency(total3mExpense, settings.currency, 'en')}</span>
-          </div>
-          <div>
-            <span className="text-slate-400 block text-[10px]">Records Filtered:</span>
-            <span className="font-extrabold text-slate-200">{recent3Maint.length + recent3Fuel.length} items</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Report Type Tabs */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 shadow-sm flex flex-wrap gap-2">
-        <button
-          onClick={() => setReportType('ai_cost_summary')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            reportType === 'ai_cost_summary'
-              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm ring-2 ring-emerald-400/30'
-              : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50'
-          }`}
-        >
-          <Sparkles className="w-4 h-4 text-emerald-500" />
-          AI 3M Cost Report
+        <button onClick={() => setReportType('ai_cost_summary')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'ai_cost_summary' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm ring-2 ring-emerald-400/30' : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50'}`}>
+          <Sparkles className="w-4 h-4 text-emerald-500" /> AI 3M Cost Report
         </button>
-        <button
-          onClick={() => setReportType('checkout_receipt')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            reportType === 'checkout_receipt'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          Checkout Receipt
+        <button onClick={() => setReportType('checkout_receipt')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'checkout_receipt' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+          <FileText className="w-4 h-4" /> Checkout Receipt
         </button>
-
-        <button
-          onClick={() => setReportType('fleet_summary')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            reportType === 'fleet_summary'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Car className="w-4 h-4" />
-          Fleet Summary
+        <button onClick={() => setReportType('fleet_summary')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'fleet_summary' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+          <Car className="w-4 h-4" /> Fleet Summary
         </button>
-
-        <button
-          onClick={() => setReportType('maintenance_audit')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            reportType === 'maintenance_audit'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Wrench className="w-4 h-4" />
-          Maintenance Audit
+        <button onClick={() => setReportType('maintenance_audit')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'maintenance_audit' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+          <Wrench className="w-4 h-4" /> Maintenance Audit
         </button>
-
-        <button
-          onClick={() => setReportType('fuel_summary')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            reportType === 'fuel_summary'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <Fuel className="w-4 h-4" />
-          Fuel Report
+        <button onClick={() => setReportType('fuel_summary')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'fuel_summary' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+          <Fuel className="w-4 h-4" /> Fuel Report
         </button>
-
-        <button
-          onClick={() => setReportType('expiries_audit')}
-          className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-            reportType === 'expiries_audit'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-          }`}
-        >
-          <ShieldCheck className="w-4 h-4" />
-          Expiries Audit
+        <button onClick={() => setReportType('expiries_audit')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'expiries_audit' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+          <ShieldCheck className="w-4 h-4" /> Expiries Audit
         </button>
       </div>
 
-      {/* Select Receipt Dropdown when checkout_receipt is selected */}
       {reportType === 'checkout_receipt' && (
         <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
           <span className="font-bold text-blue-900 dark:text-blue-200 flex items-center gap-2">
-            <FileText className="w-4 h-4 text-blue-600" />
-            Select Handover Receipt Session to Print:
+            <FileText className="w-4 h-4 text-blue-600" /> Select Handover Receipt Session:
           </span>
-          <select
-            value={selectedSessionId}
-            onChange={e => setSelectedSessionId(e.target.value)}
-            className="px-3 py-2 border rounded-xl bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700 font-bold text-xs w-full sm:w-auto"
-          >
+          <select value={selectedSessionId} onChange={e => setSelectedSessionId(e.target.value)} className="px-3 py-2 border rounded-xl bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700 font-bold text-xs w-full sm:w-auto">
             {checkouts.map(c => {
               const v = vehicles.find(veh => veh.id === c.vehicleId);
               const d = drivers.find(drv => drv.id === c.driverId);
-              return (
-                <option key={c.id} value={c.id}>
-                  Receipt #{c.id} - {v?.make} {v?.plateNumber} ({d?.name})
-                </option>
-              );
+              return <option key={c.id} value={c.id}>Receipt #{c.id} - {v?.make} {v?.plateNumber} ({d?.name})</option>;
             })}
           </select>
         </div>
       )}
 
-      {/* Printable Paper Container */}
       <div className="bg-slate-100 dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
         {renderReportContent()}
       </div>

@@ -48,7 +48,6 @@ export const translations = {
     ai_advisor: "AI Fleet Advisor",
     reports: "Print & Reports",
     settings: "Company Settings & Vault",
-
     fleetVehicles: "Fleet & Vehicles",
     driversLicenses: "Drivers & Licenses",
     handoverSignature: "Checkout & Return (Signature)",
@@ -58,12 +57,26 @@ export const translations = {
     printReports: "Print Reports",
     aiAdvisor: "AI Advisor",
     companySettings: "Company Settings & Logo",
+    userManagement: "User Management & Permissions",
 
     // ===== Header =====
     activeAlerts: "Active Alerts",
     resetData: "Reset App Data",
     confirmReset: "Are you sure you want to reset all data to default samples?",
     dataResetDone: "Application state reset successfully!",
+
+    // ===== Login =====
+    loginTitle: "Welcome Back",
+    loginSubtitle: "Sign in to your account to continue",
+    loginEmail: "Email Address",
+    loginPassword: "Password",
+    loginButton: "Sign In",
+    loginLoading: "Signing in...",
+    loginError: "Invalid email or password",
+    loginSupport: "For support, contact us at:",
+    loginSupportEmail: "support@yamanix.com",
+    loginSupportPhone: "+966 50 123 4567",
+    loginRemember: "Remember me",
 
     // ===== Dashboard =====
     quickStats: "Fleet Live Quick Stats",
@@ -102,7 +115,7 @@ export const translations = {
     daysRemaining: "days remaining",
     overdue: "Overdue",
 
-    // ===== Vehicles =====
+    // ===== VEHICLES (all keys used in VehiclesView) =====
     addNewVehicle: "Add New Vehicle to Fleet",
     scanRegistration: "Scan Vehicle Registration (OCR)",
     ocrDescription: "Extract make, model, plate number and year automatically",
@@ -117,7 +130,7 @@ export const translations = {
     licenseExpiryDateLabel: "License Expiry Date",
     insuranceExpiryDateLabel: "Insurance Expiry Date",
     insuranceCompanyLabel: "Insurance Company",
-    assignDriverLabel: "Assign to Driver",
+    assignDriverLabel: "Assign to Driver (Optional)",
     unassigned: "Unassigned",
     saveVehicle: "Save Vehicle",
     editVehicleTitle: "Edit Vehicle",
@@ -129,6 +142,7 @@ export const translations = {
     licenseExpiry: "License Expiry",
     insuranceExpiry: "Insurance Expiry",
     editComponents: "Edit Components",
+    delete: "Delete",
     filterAll: "All",
     filterAvailable: "Available",
     filterCheckedOut: "Checked Out",
@@ -140,8 +154,16 @@ export const translations = {
     resetFilters: "Reset All Filters",
     searchPlaceholder: "Search make, model, plate, VIN, or driver...",
     noVehiclesFound: "No vehicles found matching your criteria.",
+    statusLabel: "Status",
+    vehicleStatus: "Status",
+    mileage: "Odometer (km)",
+    color: "Color",
+    vinNumber: "VIN / Chassis Number",
+    notesVehicle: "Notes",
+    vehicleDetails: "Vehicle Details",
+    scanRegistrationShort: "Scan Registration",
 
-    // ===== Drivers =====
+    // ===== DRIVERS (all keys used in DriversView) =====
     addNewDriver: "Add New Driver / Staff",
     scanLicense: "Scan Driver License (OCR)",
     ocrLicenseDescription: "Extract name, ID and license number automatically",
@@ -175,8 +197,23 @@ export const translations = {
     searchDriverPlaceholder: "Search driver name, phone, ID, license, or department...",
     noDriversFound: "No drivers found matching your criteria.",
     confirmDeleteDriverMessage: "Are you sure you want to delete this driver?",
+    driverName: "Driver Name",
+    phoneNumber: "Phone Number",
+    idNumber: "ID / Iqama Number",
+    licenseNumber: "License Number",
+    licenseCategory: "License Category",
+    licenseExpiryDate: "License Expiry Date",
+    department: "Department",
+    driverStatus: "Status",
+    notesDriver: "Notes",
+    editDriver: "Edit Driver",
+    deleteDriver: "Delete Driver",
+    private: "Private",
+    commercial: "Commercial / Light Transport",
+    heavy: "Heavy Transport",
+    motorcycle: "Motorcycle",
 
-    // ===== Maintenance =====
+    // ===== MAINTENANCE =====
     addGarage: "Add Garage / Workshop",
     addMaintenance: "Record New Invoice",
     garageName: "Garage Name",
@@ -215,7 +252,7 @@ export const translations = {
     selectedDateDetails: "Maintenance Details for:",
     capacityWarning: "Overlap Capacity Warning!",
 
-    // ===== Fuel & Expenses =====
+    // ===== FUEL & EXPENSES =====
     addFuel: "Add New Fuel Log",
     addExpense: "Record Renewal / Insurance Fee",
     fuelLogs: "Fuel Records",
@@ -258,7 +295,7 @@ export const translations = {
     vendor: "Vendor",
     dueAmount: "Due Amount",
 
-    // ===== Expiries =====
+    // ===== EXPIRIES =====
     alertsCenter: "Alerts Center, Odometer Limits & Document Expiries",
     odometerAlerts: "Odometer & Service Alerts",
     licenseAlerts: "Vehicle Registration Expiries",
@@ -278,7 +315,7 @@ export const translations = {
     serviceDueSoon: "Service Due Soon",
     serviceOverdue: "Service Overdue",
 
-    // ===== Checkout =====
+    // ===== CHECKOUT =====
     checkoutTitle: "Online Handover & Digital Signature Platform",
     checkoutSubtitle: "Record vehicle checkouts and returns with timestamps and digital employee signatures.",
     checkoutNow: "Checkout Vehicle Now (Sign & Handover)",
@@ -310,7 +347,6 @@ export const translations = {
     printReceipt: "Print Receipt",
     receiptGenerated: "Receipt generated successfully!",
     activeCheckout: "Active Checkout",
-    // Checklist items
     checklistItems: {
       noScratches: "No external scratches or dents",
       spareTire: "Spare tire and jack present",
@@ -326,7 +362,7 @@ export const translations = {
     registrationDoc: "Registration card present",
     cleanliness: "Clean interior and exterior",
 
-    // ===== Print Reports =====
+    // ===== PRINT REPORTS =====
     printReportsTitle: "Print Reports & Receipts Generator",
     printReportsSubtitle: "Generate and export official handover receipts, fleet summaries, maintenance cost audits, and compliance reports with customizable company branding.",
     checkoutReceipt: "Checkout Receipt",
@@ -365,7 +401,7 @@ export const translations = {
     reAnalyze: "Re-Analyze",
     analysisError: "Analysis Error",
 
-    // ===== Company Settings =====
+    // ===== COMPANY SETTINGS =====
     companySettingsTitle: "Company Branding & Official Settings",
     companySettingsSub: "Manage company identity, print headers, contact details, and document scanner vault.",
     generalSettings: "Company Identity & CSV Export",
@@ -398,7 +434,7 @@ export const translations = {
     checkoutData: "Checkout Sessions",
     documentsData: "Documents",
 
-    // ===== Document Vault =====
+    // ===== DOCUMENT VAULT =====
     docVaultTitle: "Contracts & Insurance Vault",
     docVaultSub: "Scan and store original contracts, insurance policies, and licenses using camera or photo upload, linking them to specific vehicles or drivers.",
     scanNewDoc: "Scan / Upload New Document",
@@ -439,8 +475,7 @@ export const translations = {
     deleteDoc: "Delete",
     confirmDeleteDoc: "Are you sure you want to remove this scanned document?",
 
-    // ===== User Management =====
-    userManagement: "User Management & Permissions",
+    // ===== USER MANAGEMENT =====
     userManagementSub: "Add and manage user roles and permissions.",
     addUser: "Add New User",
     userEmail: "Email Address",
@@ -456,8 +491,18 @@ export const translations = {
     userRoleUpdated: "User role updated successfully!",
     confirmDeleteUser: "Are you sure you want to delete this user?",
     confirmUpdateRole: "Confirm role change for this user?",
+    permissionsLabel: "Permissions",
+    permissionView: "View",
+    permissionAdd: "Add",
+    permissionEdit: "Edit",
+    permissionDelete: "Delete",
+    permissionExport: "Export",
+    userCompany: "Company Access",
+    userCompanyAll: "All Companies",
+    userCompanyNone: "No Company",
+    editUser: "Edit User",
 
-    // ===== AI Advisor =====
+    // ===== AI ADVISOR =====
     aiAdvisorTitle: "Smart AI Analysis and Fleet Insights",
     aiAdvisorSub: "AI engine analyzes all maintenance invoices, fuel logs, and vehicle expiries to generate a detailed report with cost-saving recommendations.",
     generateReportBtn: "Generate AI Analysis Report",
@@ -473,6 +518,7 @@ export const translations = {
     applyToExpiries: "Apply & Add to Alerts",
     appliedSuccess: "Service date added to alerts successfully!"
   },
+
   ar: {
     // ===== General =====
     appName: "نظام إدارة أسطول السيارات والسائقين",
@@ -520,7 +566,6 @@ export const translations = {
     ai_advisor: "المستشار الذكي",
     reports: "طباعة التقارير والإيصالات",
     settings: "إعدادات الشركة والمستندات",
-
     fleetVehicles: "الأسطول والسيارات",
     driversLicenses: "السائقون والرخص",
     handoverSignature: "الاستلام والتسليم (التوقيع)",
@@ -530,12 +575,26 @@ export const translations = {
     printReports: "تقارير الطباعة",
     aiAdvisor: "المساعد الذكي (AI)",
     companySettings: "تخصيص الشركة واللوجو",
+    userManagement: "إدارة المستخدمين والصلاحيات",
 
     // ===== Header =====
     activeAlerts: "تنبيهات نشطة",
     resetData: "استعادة البيانات الافتراضية",
     confirmReset: "هل أنت متأكد من إعادة ضبط كافة البيانات إلى العينات الافتراضية؟",
     dataResetDone: "تمت إعادة ضبط كافة بيانات التطبيق بنجاح!",
+
+    // ===== Login =====
+    loginTitle: "مرحباً بعودتك",
+    loginSubtitle: "سجل الدخول إلى حسابك للمتابعة",
+    loginEmail: "البريد الإلكتروني",
+    loginPassword: "كلمة المرور",
+    loginButton: "تسجيل الدخول",
+    loginLoading: "جاري تسجيل الدخول...",
+    loginError: "البريد الإلكتروني أو كلمة المرور غير صحيحة",
+    loginSupport: "للدعم الفني، تواصل معنا على:",
+    loginSupportEmail: "support@yamanix.com",
+    loginSupportPhone: "+966 50 123 4567",
+    loginRemember: "تذكرني",
 
     // ===== Dashboard =====
     quickStats: "ملخص المؤشرات المباشرة للأسطول",
@@ -574,8 +633,8 @@ export const translations = {
     daysRemaining: "يوم متبقي",
     overdue: "متأخر",
 
-    // ===== Vehicles =====
-    addNewVehicle: "إضافة سيارة جديدة لأسطول الشركة",
+    // ===== VEHICLES (جميع النصوص المستخدمة في VehiclesView) =====
+    addNewVehicle: "إضافة مركبة جديدة للأسطول",
     scanRegistration: "مسح رخصة سير المركبة / الاستمارة بالكاميرا (OCR)",
     ocrDescription: "استخراج الماركة، رقم اللوحة، الموديل وسنة الصنع تلقائياً",
     makeLabel: "ماركة / نوع السيارة *",
@@ -601,6 +660,7 @@ export const translations = {
     licenseExpiry: "انتهاء الاستمارة",
     insuranceExpiry: "انتهاء التأمين",
     editComponents: "تعديل المكونات",
+    delete: "حذف",
     filterAll: "الكل",
     filterAvailable: "جاهزة ومتوفرة",
     filterCheckedOut: "مستلمة بالخارج",
@@ -612,8 +672,16 @@ export const translations = {
     resetFilters: "إلغاء جميع الفلاتر",
     searchPlaceholder: "بحث بالماركة، الموديل، رقم اللوحة، رقم الهيكل أو اسم السائق...",
     noVehiclesFound: "لا توجد مركبات تطابق معايير البحث.",
+    statusLabel: "الحالة",
+    vehicleStatus: "الحالة",
+    mileage: "عداد الكيلومترات (كم)",
+    color: "اللون",
+    vinNumber: "رقم الهيكل (VIN)",
+    notesVehicle: "ملاحظات",
+    vehicleDetails: "تفاصيل المركبة",
+    scanRegistrationShort: "مسح الاستمارة",
 
-    // ===== Drivers =====
+    // ===== DRIVERS (جميع النصوص المستخدمة في DriversView) =====
     addNewDriver: "إضافة سائق / موظف جديد",
     scanLicense: "مسح رخصة القيادة بالكاميرا (OCR)",
     ocrLicenseDescription: "استخراج الاسم، الهوية ورقم الرخصة تلقائياً",
@@ -647,8 +715,23 @@ export const translations = {
     searchDriverPlaceholder: "بحث باسم السائق، الجوال، رقم الهوية، الرخصة أو القسم...",
     noDriversFound: "لا توجد سائقين تطابق معايير البحث.",
     confirmDeleteDriverMessage: "هل أنت تأكد من حذف السائق؟",
+    driverName: "اسم السائق",
+    phoneNumber: "رقم الجوال",
+    idNumber: "رقم الهوية / الإقامة",
+    licenseNumber: "رقم رخصة القيادة",
+    licenseCategory: "فئة الرخصة",
+    licenseExpiryDate: "تاريخ انتهاء الرخصة",
+    department: "القسم",
+    driverStatus: "الحالة",
+    notesDriver: "ملاحظات",
+    editDriver: "تعديل بيانات السائق",
+    deleteDriver: "حذف السائق",
+    private: "خصوصي",
+    commercial: "نقل خفيف / عمومي",
+    heavy: "نقل ثقيل",
+    motorcycle: "دراجة نارية",
 
-    // ===== Maintenance =====
+    // ===== MAINTENANCE =====
     addGarage: "إضافة كراج / ورشة",
     addMaintenance: "تسجيل فاتورة صيانة جديدة",
     garageName: "اسم الورشة",
@@ -687,7 +770,7 @@ export const translations = {
     selectedDateDetails: "سجلات وتفاصيل يوم:",
     capacityWarning: "تأكيد تداخل طاقة الورش والأسطول!",
 
-    // ===== Fuel & Expenses =====
+    // ===== FUEL & EXPENSES =====
     addFuel: "تسجيل تعبئة وقود جديدة",
     addExpense: "تسجيل مصروف تجديد / تأمين",
     fuelLogs: "سجل البنزين",
@@ -730,7 +813,7 @@ export const translations = {
     vendor: "الجهة / المورد",
     dueAmount: "المبلغ المستحق",
 
-    // ===== Expiries =====
+    // ===== EXPIRIES =====
     alertsCenter: "مركز التنبيهات وإدارة حدود العداد والوثائق",
     odometerAlerts: "تنبيهات العداد والصيانة",
     licenseAlerts: "استمارات السيارات",
@@ -750,7 +833,7 @@ export const translations = {
     serviceDueSoon: "قريبة من الصيانة",
     serviceOverdue: "تجاوزت العداد",
 
-    // ===== Checkout =====
+    // ===== CHECKOUT =====
     checkoutTitle: "منصة أون لاين لاستلام وتسليم السيارات والتوقيع",
     checkoutSubtitle: "تسجيل خروج ودخول المركبات بالوقت والدقيقة والتوقيع الإلكتروني للموظف",
     checkoutNow: "استلام سيارة جديدة الآن (توقيع وتسليم)",
@@ -797,7 +880,7 @@ export const translations = {
     registrationDoc: "وجود رخصة سير المركبة (الاستمارة)",
     cleanliness: "نظافة هيكل السيارة والمقصورة الداخلية",
 
-    // ===== Print Reports =====
+    // ===== PRINT REPORTS =====
     printReportsTitle: "إنشاء التقارير والإيصالات",
     printReportsSubtitle: "إنشاء وتصدير إيصالات الاستلام الرسمية، ملخصات الأسطول، تدقيق تكاليف الصيانة، وتقارير الامتثال مع ترويسة قابلة للتخصيص.",
     checkoutReceipt: "إيصال الاستلام",
@@ -836,7 +919,7 @@ export const translations = {
     reAnalyze: "إعادة التحليل",
     analysisError: "خطأ في التحليل",
 
-    // ===== Company Settings =====
+    // ===== COMPANY SETTINGS =====
     companySettingsTitle: "إعدادات هوية الشركة والإعدادات الرسمية",
     companySettingsSub: "إدارة هوية الشركة، ترويسات الطباعة، جهات الاتصال، وخزينة مسح المستندات.",
     generalSettings: "هوية الشركة والنسخ الاحتياطي",
@@ -869,7 +952,7 @@ export const translations = {
     checkoutData: "سجلات الاستلام والتسليم",
     documentsData: "المستندات",
 
-    // ===== Document Vault =====
+    // ===== DOCUMENT VAULT =====
     docVaultTitle: "خزينة العقود وثائق التأمين الممسوحة",
     docVaultSub: "مسح وتخزين صور العقود الأصلية ووثائق التأمين باستخدام الكاميرا أو المرفقات وربطها بالسيارات والسائقين.",
     scanNewDoc: "مسح / إرفاق مستند جديد",
@@ -910,8 +993,7 @@ export const translations = {
     deleteDoc: "حذف",
     confirmDeleteDoc: "هل أنت متأكد من حذف هذا المستند الممسوح من الخزينة؟",
 
-    // ===== User Management =====
-    userManagement: "إدارة المستخدمين والصلاحيات",
+    // ===== USER MANAGEMENT =====
     userManagementSub: "إضافة وتعديل صلاحيات المستخدمين في النظام.",
     addUser: "إضافة مستخدم جديد",
     userEmail: "البريد الإلكتروني",
@@ -927,8 +1009,18 @@ export const translations = {
     userRoleUpdated: "تم تحديث صلاحية المستخدم بنجاح!",
     confirmDeleteUser: "هل أنت متأكد من حذف هذا المستخدم نهائياً؟",
     confirmUpdateRole: "تأكيد تغيير صلاحية المستخدم؟",
+    permissionsLabel: "الصلاحيات",
+    permissionView: "عرض",
+    permissionAdd: "إضافة",
+    permissionEdit: "تعديل",
+    permissionDelete: "حذف",
+    permissionExport: "تصدير",
+    userCompany: "الوصول للشركات",
+    userCompanyAll: "جميع الشركات",
+    userCompanyNone: "لا توجد شركة",
+    editUser: "تعديل المستخدم",
 
-    // ===== AI Advisor =====
+    // ===== AI ADVISOR =====
     aiAdvisorTitle: "المساعد الذكي وتحليلات أسطول السيارات (AI Advisor)",
     aiAdvisorSub: "يقوم محرك الذكاء الاصطناعي بقراءة كافة فواتير الصيانة وسجلات الوقود ورخص المركبات لتقديم تقرير تحليلي وتوصيات لتقليل المصاريف.",
     generateReportBtn: "توليد التقرير التحليلي الآن",

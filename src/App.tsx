@@ -30,6 +30,8 @@ import { CompanySettingsView } from './components/CompanySettingsView';
 import { CompanySwitcher } from './components/CompanySwitcher';
 import { ToastNotifications, ToastRefHandler } from './components/ToastNotifications';
 import { OfflineSyncBadge } from './components/OfflineSyncBadge';
+import { LoginScreen } from './components/LoginScreen';
+import { UserManagement } from './components/UserManagement';
 
 import { 
   Car, 
@@ -55,338 +57,11 @@ import {
   LogOut
 } from 'lucide-react';
 
-// ============================================================
-// مكون تسجيل الدخول (Login)
-// ============================================================
-const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      onLogin();
-    } catch (err: any) {
-      setError(err.message || 'فشل تسجيل الدخول');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d] p-4">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-8 border border-slate-200 dark:border-slate-800">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-[#cbb26a] text-black font-extrabold rounded-xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-md">
-            Y
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white">YAMANIX</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">نظام إدارة الأسطول</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">البريد الإلكتروني</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-[#cbb26a] focus:outline-none"
-              placeholder="example@company.com"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">كلمة المرور</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-[#cbb26a] focus:outline-none"
-              placeholder="••••••••"
-            />
-          </div>
-          {error && (
-            <div className="bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 p-3 rounded-xl text-xs font-medium border border-rose-200 dark:border-rose-800/50">
-              {error}
-            </div>
-          )}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3 bg-[#cbb26a] hover:bg-[#b89f57] text-black font-extrabold rounded-xl text-sm shadow-md transition flex items-center justify-center gap-2 disabled:opacity-50"
-          >
-            {loading ? (
-              <>جاري تسجيل الدخول...</>
-            ) : (
-              <>
-                <LogIn className="w-4 h-4" />
-                تسجيل الدخول
-              </>
-            )}
-          </button>
-        </form>
-
-        <div className="mt-6 text-center text-xs text-slate-400 border-t border-slate-200 dark:border-slate-800 pt-4">
-          تواصل مع المسؤول للحصول على حساب
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ============================================================
-// مكون إدارة المستخدمين (للوحة التحكم)
-// ============================================================
-const UserManagement: React.FC<{ profile: Profile }> = ({ profile }) => {
-  const [users, setUsers] = useState<Profile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserPassword, setNewUserPassword] = useState('');
-  const [newUserRole, setNewUserRole] = useState('user');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  useEffect(() => {
-    loadUsers();
-  }, []);
-
-  const loadUsers = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setUsers(data || []);
-    } catch (err) {
-      console.error('Failed to load users:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setActionLoading(true);
-    try {
-      const { data: authData, error: signUpError } = await supabase.auth.admin.createUser({
-        email: newUserEmail,
-        password: newUserPassword,
-        email_confirm: true,
-      });
-      if (signUpError) throw signUpError;
-
-      if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: authData.user.id,
-            email: newUserEmail,
-            role: newUserRole,
-            full_name: newUserEmail.split('@')[0],
-          });
-        if (profileError) throw profileError;
-      }
-
-      await loadUsers();
-      setShowAddModal(false);
-      setNewUserEmail('');
-      setNewUserPassword('');
-      setNewUserRole('user');
-    } catch (err: any) {
-      alert('فشل إضافة المستخدم: ' + err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUpdateRole = async (userId: string, newRole: string) => {
-    if (!confirm('تأكيد تغيير صلاحية المستخدم؟')) return;
-    setActionLoading(true);
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
-      if (error) throw error;
-      await loadUsers();
-    } catch (err: any) {
-      alert('فشل تحديث الصلاحية: ' + err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('هل أنت متأكد من حذف هذا المستخدم نهائياً؟')) return;
-    setActionLoading(true);
-    try {
-      const { error } = await supabase.auth.admin.deleteUser(userId);
-      if (error) throw error;
-      await loadUsers();
-    } catch (err: any) {
-      alert('فشل حذف المستخدم: ' + err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  if (loading) return <div className="p-8 text-center text-slate-500">جاري تحميل المستخدمين...</div>;
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <UserCog className="w-6 h-6 text-blue-600" />
-            إدارة المستخدمين والصلاحيات
-          </h2>
-          <p className="text-xs text-slate-500">إضافة وتعديل صلاحيات المستخدمين في النظام</p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center gap-2"
-        >
-          <Users className="w-4 h-4" /> إضافة مستخدم جديد
-        </button>
-      </div>
-
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-right text-sm">
-          <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-400 text-xs font-bold">
-            <tr>
-              <th className="p-4">البريد الإلكتروني</th>
-              <th className="p-4">الاسم</th>
-              <th className="p-4">الصلاحية</th>
-              <th className="p-4">تاريخ التسجيل</th>
-              <th className="p-4">الإجراءات</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {users.map((u) => (
-              <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition">
-                <td className="p-4 font-mono text-xs text-slate-700 dark:text-slate-300">{u.email}</td>
-                <td className="p-4 font-bold text-slate-800 dark:text-slate-200">{u.full_name || '-'}</td>
-                <td className="p-4">
-                  {u.id === profile.id ? (
-                    <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">أنت (أدمن)</span>
-                  ) : (
-                    <select
-                      value={u.role}
-                      onChange={(e) => handleUpdateRole(u.id, e.target.value)}
-                      disabled={actionLoading || u.id === profile.id}
-                      className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold"
-                    >
-                      <option value="admin">أدمن</option>
-                      <option value="manager">مدير</option>
-                      <option value="user">مستخدم</option>
-                      <option value="disabled">معطل</option>
-                    </select>
-                  )}
-                </td>
-                <td className="p-4 text-xs text-slate-500 font-mono">
-                  {new Date(u.created_at).toLocaleDateString('ar-SA')}
-                </td>
-                <td className="p-4">
-                  {u.id !== profile.id && (
-                    <button
-                      onClick={() => handleDeleteUser(u.id)}
-                      disabled={actionLoading}
-                      className="text-rose-500 hover:text-rose-700 text-xs font-bold"
-                    >
-                      حذف
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-800">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">إضافة مستخدم جديد</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-            <form onSubmit={handleAddUser} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">البريد الإلكتروني *</label>
-                <input
-                  type="email"
-                  required
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm"
-                  placeholder="user@company.com"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">كلمة المرور *</label>
-                <input
-                  type="password"
-                  required
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm"
-                  placeholder="••••••••"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">الصلاحية</label>
-                <select
-                  value={newUserRole}
-                  onChange={(e) => setNewUserRole(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm"
-                >
-                  <option value="user">مستخدم</option>
-                  <option value="manager">مدير</option>
-                  <option value="admin">أدمن</option>
-                </select>
-              </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  disabled={actionLoading}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs shadow transition disabled:opacity-50"
-                >
-                  {actionLoading ? 'جاري الإضافة...' : 'إضافة المستخدم'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// ============================================================
-// المكون الرئيسي App
-// ============================================================
 export default function App() {
   // ===== اللغة =====
   const [lang, setLang] = useState<Language>(() => {
     const saved = localStorage.getItem('fleet_language') as Language;
-    return saved || 'en'; // افتراضي إنجليزي
+    return saved || 'en';
   });
 
   // ===== التنقل =====
@@ -419,7 +94,7 @@ export default function App() {
   const [receiptSession, setReceiptSession] = useState<CheckoutSession | null>(null);
 
   // ============================================================
-  // حفظ اللغة في localStorage عند تغييرها
+  // حفظ اللغة في localStorage
   // ============================================================
   useEffect(() => {
     localStorage.setItem('fleet_language', lang);
@@ -464,7 +139,7 @@ export default function App() {
   }, []);
 
   // ============================================================
-  // تحميل البيانات (عند تسجيل الدخول)
+  // تحميل البيانات
   // ============================================================
   useEffect(() => {
     if (!session) return;
@@ -498,7 +173,7 @@ export default function App() {
   }, [session]);
 
   // ============================================================
-  // دوال إدارة الشركات
+  // دوال الشركات
   // ============================================================
   const handleSelectCompany = (id: string) => {
     setActiveCompanyIdState(id);
@@ -523,13 +198,10 @@ export default function App() {
       const nextId = updated.length > 0 ? updated[0].id : 'all';
       handleSelectCompany(nextId);
     }
-    
-    // إعادة تحميل الصفحة لتحديث جميع المكونات
-    setTimeout(() => window.location.reload(), 500);
   };
 
   // ============================================================
-  // دوال أخرى (ملخصة)
+  // إعدادات الشركة الحالية
   // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
     if (activeCompanyId === 'all') {
@@ -565,7 +237,9 @@ export default function App() {
     return settings;
   }, [activeCompanyId, companies, settings, lang]);
 
+  // ============================================================
   // تصفية البيانات حسب الشركة النشطة
+  // ============================================================
   const filteredVehicles = useMemo(() => {
     if (!Array.isArray(vehicles)) return [];
     if (activeCompanyId === 'all') return vehicles;
@@ -614,7 +288,9 @@ export default function App() {
     return documents.filter(doc => (doc.companyId || 'comp-1') === activeCompanyId);
   }, [documents, activeCompanyId]);
 
+  // ============================================================
   // التنبيهات
+  // ============================================================
   const activeAlertsCount = React.useMemo(() => {
     let count = 0;
     const today = new Date();
@@ -645,10 +321,22 @@ export default function App() {
     return count;
   }, [filteredVehicles, filteredDrivers]);
 
-  // دوال الحفظ (مختصرة)
+  // ============================================================
+  // دوال الحفظ (مع الصلاحيات)
+  // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
+  // التحقق من الصلاحيات
+  const hasPermission = (module: string, action: string = 'view') => {
+    if (profile?.role === 'admin') return true;
+    return profile?.permissions?.[module]?.[action] === true;
+  };
+
   const handleSaveVehicle = async (v: Vehicle) => {
+    if (!hasPermission('vehicles', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سيارات' : 'You do not have permission to add vehicles');
+      return;
+    }
     const compId = v.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedVehicle = { 
       ...v, 
@@ -664,12 +352,20 @@ export default function App() {
   };
 
   const handleDeleteVehicle = async (id: string) => {
+    if (!hasPermission('vehicles', 'delete')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف السيارات' : 'You do not have permission to delete vehicles');
+      return;
+    }
     const updated = vehicles.filter(v => v.id !== id);
     setVehicles(updated);
     await storage.saveVehicles(updated);
   };
 
   const handleSaveDriver = async (d: Driver) => {
+    if (!hasPermission('drivers', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سائقين' : 'You do not have permission to add drivers');
+      return;
+    }
     const compId = d.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
     const updatedDriver = { 
       ...d, 
@@ -685,12 +381,150 @@ export default function App() {
   };
 
   const handleDeleteDriver = async (id: string) => {
+    if (!hasPermission('drivers', 'delete')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف سائقين' : 'You do not have permission to delete drivers');
+      return;
+    }
     const updated = drivers.filter(d => d.id !== id);
     setDrivers(updated);
     await storage.saveDrivers(updated);
   };
 
+  const handleSaveCheckout = async (session: CheckoutSession) => {
+    if (!hasPermission('checkout', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة جلسات استلام' : 'You do not have permission to add checkout sessions');
+      return;
+    }
+    const updated = [session, ...checkouts];
+    setCheckouts(updated);
+    await storage.saveCheckoutSessions(updated);
+  };
+
+  const handleReturnVehicle = async (sessionId: string, returnData: Partial<CheckoutSession>) => {
+    if (!hasPermission('checkout', 'edit')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لتعديل جلسات الاستلام' : 'You do not have permission to edit checkout sessions');
+      return;
+    }
+    const updated = checkouts.map(c => c.id === sessionId ? { ...c, ...returnData } : c);
+    setCheckouts(updated);
+    await storage.saveCheckoutSessions(updated);
+  };
+
+  // دوال أخرى مختصرة
+  const handleSaveMaintenance = async (record: MaintenanceRecord) => {
+    if (!hasPermission('maintenance', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سجلات صيانة' : 'You do not have permission to add maintenance records');
+      return;
+    }
+    const updated = [record, ...maintenance];
+    setMaintenance(updated);
+    await storage.saveMaintenanceRecords(updated);
+  };
+
+  const handleDeleteMaintenance = async (id: string) => {
+    if (!hasPermission('maintenance', 'delete')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف سجلات الصيانة' : 'You do not have permission to delete maintenance records');
+      return;
+    }
+    const updated = maintenance.filter(m => m.id !== id);
+    setMaintenance(updated);
+    await storage.saveMaintenanceRecords(updated);
+  };
+
+  const handleSaveGarage = async (g: Garage) => {
+    if (!hasPermission('maintenance', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة كراجات' : 'You do not have permission to add garages');
+      return;
+    }
+    const updated = [g, ...garages];
+    setGarages(updated);
+    await storage.saveGarages(updated);
+  };
+
+  const handleSaveFuel = async (f: FuelRecord) => {
+    if (!hasPermission('fuel', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سجلات وقود' : 'You do not have permission to add fuel records');
+      return;
+    }
+    const updated = [f, ...fuel];
+    setFuel(updated);
+    await storage.saveFuelRecords(updated);
+  };
+
+  const handleDeleteFuel = async (id: string) => {
+    if (!hasPermission('fuel', 'delete')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف سجلات الوقود' : 'You do not have permission to delete fuel records');
+      return;
+    }
+    const updated = fuel.filter(f => f.id !== id);
+    setFuel(updated);
+    await storage.saveFuelRecords(updated);
+  };
+
+  const handleSaveExpense = async (e: ExpenseRecord) => {
+    if (!hasPermission('fuel', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة مصاريف' : 'You do not have permission to add expenses');
+      return;
+    }
+    const updated = [e, ...expenses];
+    setExpenses(updated);
+    await storage.saveExpenseRecords(updated);
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    if (!hasPermission('fuel', 'delete')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف المصاريف' : 'You do not have permission to delete expenses');
+      return;
+    }
+    const updated = expenses.filter(e => e.id !== id);
+    setExpenses(updated);
+    await storage.saveExpenseRecords(updated);
+  };
+
+  const handleSaveSettings = (newSettings: CompanySettings) => {
+    const targetCompId = activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId;
+    const updatedCompanies = companies.map(c => {
+      if (c.id === targetCompId) {
+        return {
+          ...c,
+          name: newSettings.companyName,
+          tagline: newSettings.tagline,
+          logoUrl: newSettings.logoUrl,
+          phone: newSettings.phone,
+          email: newSettings.email,
+          address: newSettings.address,
+          commercialRegNumber: newSettings.commercialRegNumber,
+          currency: newSettings.currency
+        };
+      }
+      return c;
+    });
+
+    setCompanies(updatedCompanies);
+    storage.saveCompanies(updatedCompanies);
+    setSettings(newSettings);
+    storage.saveSettings(newSettings);
+  };
+
+  const handleSaveDocuments = async (docs: CompanyDocument[]) => {
+    if (!hasPermission('settings', 'edit')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لتعديل المستندات' : 'You do not have permission to edit documents');
+      return;
+    }
+    const compId = activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId;
+    const docsWithComp = docs.map(d => ({ ...d, companyId: d.companyId || compId }));
+    setDocuments(docsWithComp);
+    await storage.saveDocuments(docsWithComp);
+  };
+
+  const handlePrintReceipt = (session: CheckoutSession) => {
+    setReceiptSession(session);
+    setActiveTab('reports');
+  };
+
+  // ============================================================
   // تسجيل الخروج
+  // ============================================================
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -699,35 +533,46 @@ export default function App() {
   };
 
   // ============================================================
-  // شاشة التحميل والمصادقة
+  // قائمة التبويبات (مع الصلاحيات)
+  // ============================================================
+  const navItems = [
+    { id: 'dashboard', label: t('dashboard', lang), icon: LayoutDashboard, module: 'vehicles' },
+    { id: 'vehicles', label: t('fleetVehicles', lang), icon: Car, module: 'vehicles' },
+    { id: 'drivers', label: t('driversLicenses', lang), icon: Users, module: 'drivers' },
+    { id: 'checkout', label: t('handoverSignature', lang), icon: KeyRound, highlight: true, module: 'checkout' },
+    { id: 'maintenance', label: t('maintenanceGarages', lang), icon: Wrench, module: 'maintenance' },
+    { id: 'fuel', label: t('fuelExpenses', lang), icon: Fuel, module: 'fuel' },
+    { id: 'expiries', label: t('expiriesAlerts', lang), icon: ShieldAlert, module: 'vehicles' },
+    { id: 'reports', label: t('printReports', lang), icon: Printer, module: 'reports' },
+    { id: 'advisor', label: t('aiAdvisor', lang), icon: Sparkles, module: 'vehicles' },
+    { id: 'settings', label: t('companySettings', lang), icon: Building2, module: 'settings' },
+    { id: 'users', label: t('userManagement', lang), icon: UserCog, module: 'users' },
+  ];
+
+  // ============================================================
+  // إذا كان المستخدم غير مسجل الدخول
   // ============================================================
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">جاري التحميل...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">{t('loading', lang)}</div>;
   }
 
   if (!session) {
-    return <LoginScreen onLogin={() => {}} />;
+    return (
+      <LoginScreen
+        lang={lang}
+        onLogin={() => {}}
+        companyLogo={currentCompanySettings.logoUrl || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=150&auto=format&fit=crop&q=80'}
+        supportEmail="support@yamanix.com"
+        supportPhone="+966 50 123 4567"
+      />
+    );
   }
 
   // ============================================================
-  // قائمة التبويبات (مع حماية الصلاحيات)
+  // التحقق من الصلاحية للتبويب النشط
   // ============================================================
-  const navItems = [
-    { id: 'dashboard', label: t('dashboard', lang), icon: LayoutDashboard, allowed: ['admin', 'manager', 'user'] },
-    { id: 'vehicles', label: t('fleetVehicles', lang), icon: Car, allowed: ['admin', 'manager', 'user'] },
-    { id: 'drivers', label: t('driversLicenses', lang), icon: Users, allowed: ['admin', 'manager', 'user'] },
-    { id: 'checkout', label: t('handoverSignature', lang), icon: KeyRound, highlight: true, allowed: ['admin', 'manager', 'user'] },
-    { id: 'maintenance', label: t('maintenanceGarages', lang), icon: Wrench, allowed: ['admin', 'manager', 'user'] },
-    { id: 'fuel', label: t('fuelExpenses', lang), icon: Fuel, allowed: ['admin', 'manager', 'user'] },
-    { id: 'expiries', label: t('expiriesAlerts', lang), icon: ShieldAlert, allowed: ['admin', 'manager', 'user'] },
-    { id: 'reports', label: t('printReports', lang), icon: Printer, allowed: ['admin', 'manager', 'user'] },
-    { id: 'advisor', label: t('aiAdvisor', lang), icon: Sparkles, allowed: ['admin', 'manager', 'user'] },
-    { id: 'settings', label: t('companySettings', lang), icon: Building2, allowed: ['admin', 'manager', 'user'] },
-    { id: 'users', label: 'إدارة المستخدمين', icon: UserCog, allowed: ['admin'] },
-  ];
-
   const currentNavItem = navItems.find(item => item.id === activeTab);
-  const isAllowed = currentNavItem ? currentNavItem.allowed.includes(profile?.role || 'user') : false;
+  const isAllowed = currentNavItem ? hasPermission(currentNavItem.module, 'view') : false;
 
   // ============================================================
   // التصيير الرئيسي
@@ -749,7 +594,7 @@ export default function App() {
               <p className="text-[11px] text-slate-500 dark:text-gray-400 flex items-center gap-2">
                 {lang === 'ar' ? 'نظام إدارة الأسطول' : 'Fleet Management'}
                 <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-[10px] font-bold">
-                  {profile?.role === 'admin' ? 'أدمن' : profile?.role === 'manager' ? 'مدير' : 'مستخدم'}
+                  {profile?.role === 'admin' ? t('roleAdmin', lang) : profile?.role === 'manager' ? t('roleManager', lang) : profile?.role === 'disabled' ? t('roleDisabled', lang) : t('roleUser', lang)}
                 </span>
               </p>
             </div>
@@ -798,7 +643,7 @@ export default function App() {
               )}
             </button>
 
-            <button onClick={handleLogout} className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition" title="تسجيل الخروج">
+            <button onClick={handleLogout} className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition" title={lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}>
               <LogOut className="w-5 h-5" />
             </button>
 
@@ -816,7 +661,7 @@ export default function App() {
         <div className="hidden lg:block bg-slate-50 dark:bg-[#0a0b0d]/90 border-t border-slate-200 dark:border-gray-800/80 px-4 sm:px-6">
           <div className="max-w-7xl mx-auto flex items-center gap-1 overflow-x-auto py-1.5">
             {navItems.map(item => {
-              if (!item.allowed.includes(profile?.role || 'user')) return null;
+              if (!hasPermission(item.module, 'view')) return null;
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -842,7 +687,7 @@ export default function App() {
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white dark:bg-[#0f1115] border-b border-slate-200 dark:border-gray-800 px-4 py-3 space-y-1">
             {navItems.map(item => {
-              if (!item.allowed.includes(profile?.role || 'user')) return null;
+              if (!hasPermission(item.module, 'view')) return null;
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -869,22 +714,32 @@ export default function App() {
         {!isAllowed && activeTab !== 'dashboard' ? (
           <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/50 rounded-2xl p-8 text-center text-amber-800 dark:text-amber-300">
             <Shield className="w-12 h-12 mx-auto mb-4 text-amber-500" />
-            <h3 className="text-lg font-bold">غير مصرح لك بالدخول إلى هذه الصفحة</h3>
-            <p className="text-sm mt-2">صلاحياتك الحالية لا تسمح بعرض هذا المحتوى.</p>
+            <h3 className="text-lg font-bold">{lang === 'ar' ? 'غير مصرح لك بالدخول إلى هذه الصفحة' : 'You do not have permission to access this page'}</h3>
+            <p className="text-sm mt-2">{lang === 'ar' ? 'صلاحياتك الحالية لا تسمح بعرض هذا المحتوى.' : 'Your current permissions do not allow access to this content.'}</p>
           </div>
         ) : (
           <>
             {activeTab === 'dashboard' && <DashboardView vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} settings={currentCompanySettings} onNavigateTab={setActiveTab} lang={lang} />}
             {activeTab === 'vehicles' && <VehiclesView vehicles={filteredVehicles} drivers={filteredDrivers} onSaveVehicle={handleSaveVehicle} onDeleteVehicle={handleDeleteVehicle} lang={lang} />}
             {activeTab === 'drivers' && <DriversView drivers={filteredDrivers} vehicles={filteredVehicles} onSaveDriver={handleSaveDriver} onDeleteDriver={handleDeleteDriver} lang={lang} />}
-            {activeTab === 'checkout' && <CheckoutHub vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} settings={currentCompanySettings} onSaveCheckout={async (session) => { const updated = [session, ...checkouts]; setCheckouts(updated); await storage.saveCheckoutSessions(updated); }} onReturnVehicle={async (sessionId, data) => { const updated = checkouts.map(c => c.id === sessionId ? { ...c, ...data } : c); setCheckouts(updated); await storage.saveCheckoutSessions(updated); }} onPrintReceipt={setReceiptSession} lang={lang} />}
-            {activeTab === 'maintenance' && <MaintenanceView maintenance={filteredMaintenance} vehicles={filteredVehicles} garages={filteredGarages} onSaveMaintenance={async (record) => { const updated = [record, ...maintenance]; setMaintenance(updated); await storage.saveMaintenanceRecords(updated); }} onDeleteMaintenance={async (id) => { const updated = maintenance.filter(m => m.id !== id); setMaintenance(updated); await storage.saveMaintenanceRecords(updated); }} onSaveGarage={async (g) => { const updated = [g, ...garages]; setGarages(updated); await storage.saveGarages(updated); }} lang={lang} />}
-            {activeTab === 'fuel' && <FuelExpensesView fuel={filteredFuel} expenses={filteredExpenses} vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} garages={filteredGarages} maintenance={filteredMaintenance} onSaveFuel={async (f) => { const updated = [f, ...fuel]; setFuel(updated); await storage.saveFuelRecords(updated); }} onDeleteFuel={async (id) => { const updated = fuel.filter(f => f.id !== id); setFuel(updated); await storage.saveFuelRecords(updated); }} onSaveExpense={async (e) => { const updated = [e, ...expenses]; setExpenses(updated); await storage.saveExpenseRecords(updated); }} onDeleteExpense={async (id) => { const updated = expenses.filter(e => e.id !== id); setExpenses(updated); await storage.saveExpenseRecords(updated); }} onSaveMaintenance={async (record) => { const updated = [record, ...maintenance]; setMaintenance(updated); await storage.saveMaintenanceRecords(updated); }} lang={lang} />}
+            {activeTab === 'checkout' && <CheckoutHub vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} settings={currentCompanySettings} onSaveCheckout={handleSaveCheckout} onReturnVehicle={handleReturnVehicle} onPrintReceipt={handlePrintReceipt} lang={lang} />}
+            {activeTab === 'maintenance' && <MaintenanceView maintenance={filteredMaintenance} vehicles={filteredVehicles} garages={filteredGarages} settings={currentCompanySettings} onSaveMaintenance={handleSaveMaintenance} onDeleteMaintenance={handleDeleteMaintenance} onSaveGarage={handleSaveGarage} lang={lang} />}
+            {activeTab === 'fuel' && <FuelExpensesView fuel={filteredFuel} expenses={filteredExpenses} vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} garages={filteredGarages} maintenance={filteredMaintenance} onSaveFuel={handleSaveFuel} onDeleteFuel={handleDeleteFuel} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} onSaveMaintenance={handleSaveMaintenance} lang={lang} />}
             {activeTab === 'expiries' && <ExpiriesView vehicles={filteredVehicles} drivers={filteredDrivers} onSaveVehicle={handleSaveVehicle} lang={lang} />}
-            {activeTab === 'reports' && <PrintReportsView settings={currentCompanySettings} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} activeReceiptSession={receiptSession} onClearReceiptSession={() => setReceiptSession(null)} onSaveSettings={(newSettings) => { setSettings(newSettings); storage.saveSettings(newSettings); }} lang="en" />}
+            {activeTab === 'reports' && <PrintReportsView settings={currentCompanySettings} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} activeReceiptSession={receiptSession} onClearReceiptSession={() => setReceiptSession(null)} onSaveSettings={handleSaveSettings} lang={lang} />}
             {activeTab === 'advisor' && <AIFleetAdvisor vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} settings={currentCompanySettings} onSaveVehicle={handleSaveVehicle} onNavigateTab={setActiveTab} lang={lang} />}
-            {activeTab === 'settings' && <CompanySettingsView settings={currentCompanySettings} documents={filteredDocuments} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} garages={filteredGarages} expenses={filteredExpenses} lang={lang} companies={companies} activeCompanyId={activeCompanyId} onSave={(newSettings) => { setSettings(newSettings); storage.saveSettings(newSettings); }} onSaveDocuments={async (docs) => { setDocuments(docs); await storage.saveDocuments(docs); }} onSelectCompany={handleSelectCompany} onAddCompany={handleAddCompany} onDeleteCompany={handleDeleteCompany} />}
-            {activeTab === 'users' && profile?.role === 'admin' && <UserManagement profile={profile} />}
+            {activeTab === 'settings' && <CompanySettingsView settings={currentCompanySettings} documents={filteredDocuments} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} garages={filteredGarages} expenses={filteredExpenses} lang={lang} companies={companies} activeCompanyId={activeCompanyId} onSave={handleSaveSettings} onSaveDocuments={handleSaveDocuments} onSelectCompany={handleSelectCompany} onAddCompany={handleAddCompany} onDeleteCompany={handleDeleteCompany} />}
+            {activeTab === 'users' && profile?.role === 'admin' && (
+              <UserManagement
+                profile={profile}
+                companies={companies}
+                lang={lang}
+                onUpdate={() => {
+                  // إعادة تحميل البيانات بعد التحديث
+                  window.location.reload();
+                }}
+              />
+            )}
           </>
         )}
       </main>
