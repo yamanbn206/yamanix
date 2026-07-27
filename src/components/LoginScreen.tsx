@@ -6,9 +6,20 @@ import { LogIn, Mail, Lock, Phone, Mail as MailIcon } from 'lucide-react';
 interface LoginScreenProps {
   lang: Language;
   onLogin: () => void;
+  logoUrl?: string;
+  supportEmail?: string;
+  supportPhone?: string;
+  copyrightText?: string;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ lang, onLogin }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({
+  lang,
+  onLogin,
+  logoUrl,
+  supportEmail = 'bahaa.it2020@gmail.com',
+  supportPhone = '+971 58 669 2733',
+  copyrightText = 'جميع الحقوق محفوظة © 2026 فريق YAMANIX TEAM & BAHAA NASIR'
+}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -32,12 +43,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ lang, onLogin }) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-[#0a0b0d] dark:to-[#0f1115] p-4">
       <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-md w-full p-8 border border-slate-200 dark:border-slate-800">
-        {/* Logo - YAMANIX الأساسي */}
+        {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
-            <div className="w-24 h-24 bg-[#cbb26a] rounded-2xl flex items-center justify-center shadow-lg">
-              <span className="text-4xl font-black text-black">Y</span>
-            </div>
+            {logoUrl ? (
+              <img src={logoUrl} alt="YAMANIX Logo" className="h-20 w-auto object-contain" />
+            ) : (
+              <div className="w-24 h-24 bg-[#cbb26a] rounded-2xl flex items-center justify-center shadow-lg">
+                <span className="text-5xl font-black text-black">Y</span>
+              </div>
+            )}
           </div>
           <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">YAMANIX</h1>
           <p className="text-sm font-semibold text-[#cbb26a] mt-1">VEHICLE MANAGEMENT SYSTEM</p>
@@ -107,25 +122,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ lang, onLogin }) => {
           <div className="flex flex-col items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <p className="font-medium">{t('loginSupport', lang)}</p>
             <div className="flex flex-wrap items-center justify-center gap-4 mt-1">
-              <a href="tel:+971586692733" className="flex items-center gap-1.5 hover:text-[#cbb26a] transition">
+              <a href={`tel:${supportPhone}`} className="flex items-center gap-1.5 hover:text-[#cbb26a] transition">
                 <Phone className="w-3.5 h-3.5" />
-                <span>+971 58 669 2733</span>
+                <span>{supportPhone}</span>
               </a>
-              <a href="mailto:bahaa.it2020@gmail.com" className="flex items-center gap-1.5 hover:text-[#cbb26a] transition">
+              <a href={`mailto:${supportEmail}`} className="flex items-center gap-1.5 hover:text-[#cbb26a] transition">
                 <MailIcon className="w-3.5 h-3.5" />
-                <span>bahaa.it2020@gmail.com</span>
+                <span>{supportEmail}</span>
               </a>
             </div>
           </div>
         </div>
 
-        {/* Footer - All Rights Reserved */}
+        {/* Footer - Copyright */}
         <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 text-center">
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-            جميع الحقوق محفوظة © 2026
-          </p>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500">
-            فريق YAMANIX TEAM &amp; BAHAA NASIR
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium whitespace-pre-line">
+            {copyrightText}
           </p>
         </div>
       </div>

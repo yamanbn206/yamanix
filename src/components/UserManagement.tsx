@@ -30,7 +30,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Form state
   const [formEmail, setFormEmail] = useState('');
   const [formPassword, setFormPassword] = useState('');
   const [formRole, setFormRole] = useState('user');
@@ -76,62 +75,48 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
     setShowAddModal(true);
   };
 
-  const handleAddUser = async (e: React.FormEvent) => {
+  // === استدعاء API من الخادم الخلفي ===
+  const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
     try {
-      // الحصول على التوكن الحالي للمستخدم
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('You must be logged in to perform this action');
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) throw new Error('No session');
+
+      let url = '/api/admin/create-user';
+      let method = 'POST';
+      let body: any = {
+        email: formEmail,
+        password: formPassword,
+        role: formRole,
+        companyId: formCompanyId || null,
+        permissions: formPermissions
+      };
+
+      if (editingUser) {
+        // لتعديل المستخدم، نستخدم endpoint آخر (يمكنك إضافته لاحقاً)
+        // مؤقتاً نستخدم update مباشرة من supabase (لكن هذا سيتطلب تعديل)
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            role: formRole,
+            company_id: formCompanyId || null,
+            permissions: formPermissions
+          })
+          .eq('id', editingUser.id);
+        if (error) throw error;
+      } else {
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify(body)
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to create user');
       }
-
-      // إرسال الطلب إلى الخادم الخلفي
-      const response = await fetch('/api/admin/create-user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          email: formEmail,
-          password: formPassword,
-          role: formRole,
-          companyId: formCompanyId,
-          permissions: formPermissions
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create user');
-      }
-
-      await loadUsers();
-      setShowAddModal(false);
-      resetForm();
-      onUpdate();
-    } catch (err: any) {
-      alert('Error: ' + err.message);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleUpdateUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setActionLoading(true);
-    try {
-      // تحديث المستخدم مباشرة عبر Supabase (لأنه مجرد تحديث للـ profile)
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          role: formRole,
-          company_id: formCompanyId || null,
-          permissions: formPermissions
-        })
-        .eq('id', editingUser?.id);
-      if (error) throw error;
 
       await loadUsers();
       setShowAddModal(false);
@@ -148,15 +133,19 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
     if (!confirm(t('confirmDeleteUser', lang))) return;
     setActionLoading(true);
     try {
-      // حذف المستخدم عبر الخادم الخلفي
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
+      // حذف المستخدم عبر API (يمكن إضافة endpoint)
+      // مؤقتاً نستخدم supabase.admin.deleteUser (لكن هذا يتطلب service_role)
+      // نفضل استخدام endpoint في server.ts
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) throw new Error('No session');
 
-      const response = await fetch(`/api/admin/delete-user/${userId}`, {
+      const response = await fetch('/api/admin/delete-user', {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`
-        }
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ userId })
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Failed to delete user');
@@ -184,7 +173,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -201,7 +189,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
         </button>
       </div>
 
-      {/* Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -282,7 +269,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
               <button onClick={() => { setShowAddModal(false); resetForm(); }} className="text-slate-400 hover:text-slate-600">✕</button>
             </div>
 
-            <form onSubmit={editingUser ? handleUpdateUser : handleAddUser} className="space-y-4 mt-4">
+            <form onSubmit={handleSaveUser} className="space-y-4 mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
