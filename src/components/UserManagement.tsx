@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Company } from '../types';
 import { Language, t } from '../lib/i18n';
-import { UserCog, Users, Plus, Edit, Trash2, Shield, Building2, Save } from 'lucide-react';
+import { UserCog, Users, Plus, Edit, Trash2, Shield, Building2, Save, Key, Eye, EyeOff } from 'lucide-react';
 
 interface UserManagementProps {
   profile: Profile;
@@ -28,6 +28,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetPassword, setResetPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const [formEmail, setFormEmail] = useState('');
   const [formPassword, setFormPassword] = useState('');
@@ -109,7 +113,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
 
         const text = await response.text();
         if (!response.ok) {
-          throw new Error(`Server error: ${text}`);
+          let errorMsg = 'Server error';
+          try {
+            const json = JSON.parse(text);
+            errorMsg = json.error || json.message || errorMsg;
+          } catch (e) {
+            errorMsg = text || errorMsg;
+          }
+          throw new Error(errorMsg);
         }
         const data = JSON.parse(text);
         if (data.error) throw new Error(data.error);
@@ -120,7 +131,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
       resetForm();
       onUpdate();
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      alert('❌ Error: ' + err.message);
     } finally {
       setActionLoading(false);
     }
@@ -142,7 +153,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
 
       const text = await response.text();
       if (!response.ok) {
-        throw new Error(`Server error: ${text}`);
+        let errorMsg = 'Server error';
+        try {
+          const json = JSON.parse(text);
+          errorMsg = json.error || json.message || errorMsg;
+        } catch (e) {
+          errorMsg = text || errorMsg;
+        }
+        throw new Error(errorMsg);
       }
       const data = JSON.parse(text);
       if (data.error) throw new Error(data.error);
@@ -150,7 +168,54 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
       await loadUsers();
       onUpdate();
     } catch (err: any) {
-      alert('Error: ' + err.message);
+      alert('❌ Error deleting user: ' + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetEmail || !resetPassword) {
+      alert('Email and new password are required');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const session = (await supabase.auth.getSession()).data.session;
+      if (!session) throw new Error('No session');
+
+      const response = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          email: resetEmail,
+          newPassword: resetPassword
+        })
+      });
+
+      const text = await response.text();
+      if (!response.ok) {
+        let errorMsg = 'Server error';
+        try {
+          const json = JSON.parse(text);
+          errorMsg = json.error || json.message || errorMsg;
+        } catch (e) {
+          errorMsg = text || errorMsg;
+        }
+        throw new Error(errorMsg);
+      }
+      const data = JSON.parse(text);
+      if (data.error) throw new Error(data.error);
+
+      alert('✅ Password reset successfully for ' + resetEmail);
+      setShowPasswordReset(false);
+      setResetEmail('');
+      setResetPassword('');
+    } catch (err: any) {
+      alert('❌ Error resetting password: ' + err.message);
     } finally {
       setActionLoading(false);
     }
@@ -171,7 +236,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <UserCog className="w-6 h-6 text-blue-600" />
@@ -179,12 +244,20 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
           </h2>
           <p className="text-xs text-slate-500">{t('userManagementSub', lang)}</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowAddModal(true); }}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> {t('addUser', lang)}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { resetForm(); setShowAddModal(true); }}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> {t('addUser', lang)}
+          </button>
+          <button
+            onClick={() => setShowPasswordReset(true)}
+            className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-xl shadow transition flex items-center gap-2"
+          >
+            <Key className="w-4 h-4" /> Reset Password
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -233,7 +306,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
                     </td>
                     <td className="p-4">
                       {!isCurrentUser && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <button
                             onClick={() => handleEditUser(u)}
                             className="text-blue-600 hover:text-blue-800 text-xs font-bold"
@@ -257,7 +330,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Add/Edit Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -381,6 +454,73 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Password Reset Modal */}
+      {showPasswordReset && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-4 border-slate-200 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Key className="w-5 h-5 text-amber-500" />
+                Reset Password
+              </h3>
+              <button onClick={() => setShowPasswordReset(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+
+            <div className="space-y-4 mt-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">User Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm"
+                  placeholder="user@company.com"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">New Password *</label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={resetPassword}
+                    onChange={(e) => setResetPassword(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-sm pr-10"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordReset(false)}
+                  className="px-4 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-600"
+                >
+                  {t('cancel', lang)}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetPassword}
+                  disabled={actionLoading}
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg text-xs shadow transition disabled:opacity-50 flex items-center gap-2"
+                >
+                  <Key className="w-4 h-4" />
+                  {actionLoading ? 'Resetting...' : 'Reset Password'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
