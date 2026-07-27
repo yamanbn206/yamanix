@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://yamanix.onrender.com/api/$1"
+    }
+  ]
+}
