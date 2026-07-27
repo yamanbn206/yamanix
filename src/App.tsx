@@ -94,7 +94,7 @@ export default function App() {
   const [receiptSession, setReceiptSession] = useState<CheckoutSession | null>(null);
 
   // ============================================================
-  // حفظ اللغة في localStorage
+  // حفظ اللغة
   // ============================================================
   useEffect(() => {
     localStorage.setItem('fleet_language', lang);
@@ -322,16 +322,16 @@ export default function App() {
   }, [filteredVehicles, filteredDrivers]);
 
   // ============================================================
-  // دوال الحفظ (مع الصلاحيات)
+  // دوال الحفظ والحذف (مع الصلاحيات)
   // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
-  // التحقق من الصلاحيات
   const hasPermission = (module: string, action: string = 'view') => {
     if (profile?.role === 'admin') return true;
     return profile?.permissions?.[module]?.[action] === true;
   };
 
+  // ===== VEHICLES =====
   const handleSaveVehicle = async (v: Vehicle) => {
     if (!hasPermission('vehicles', 'add')) {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سيارات' : 'You do not have permission to add vehicles');
@@ -356,11 +356,15 @@ export default function App() {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف السيارات' : 'You do not have permission to delete vehicles');
       return;
     }
-    const updated = vehicles.filter(v => v.id !== id);
-    setVehicles(updated);
-    await storage.saveVehicles(updated);
+    try {
+      await storage.deleteVehicle(id);
+      setVehicles(prev => prev.filter(v => v.id !== id));
+    } catch (error) {
+      alert('Failed to delete vehicle');
+    }
   };
 
+  // ===== DRIVERS =====
   const handleSaveDriver = async (d: Driver) => {
     if (!hasPermission('drivers', 'add')) {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سائقين' : 'You do not have permission to add drivers');
@@ -385,32 +389,15 @@ export default function App() {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف سائقين' : 'You do not have permission to delete drivers');
       return;
     }
-    const updated = drivers.filter(d => d.id !== id);
-    setDrivers(updated);
-    await storage.saveDrivers(updated);
-  };
-
-  const handleSaveCheckout = async (session: CheckoutSession) => {
-    if (!hasPermission('checkout', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة جلسات استلام' : 'You do not have permission to add checkout sessions');
-      return;
+    try {
+      await storage.deleteDriver(id);
+      setDrivers(prev => prev.filter(d => d.id !== id));
+    } catch (error) {
+      alert('Failed to delete driver');
     }
-    const updated = [session, ...checkouts];
-    setCheckouts(updated);
-    await storage.saveCheckoutSessions(updated);
   };
 
-  const handleReturnVehicle = async (sessionId: string, returnData: Partial<CheckoutSession>) => {
-    if (!hasPermission('checkout', 'edit')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لتعديل جلسات الاستلام' : 'You do not have permission to edit checkout sessions');
-      return;
-    }
-    const updated = checkouts.map(c => c.id === sessionId ? { ...c, ...returnData } : c);
-    setCheckouts(updated);
-    await storage.saveCheckoutSessions(updated);
-  };
-
-  // دوال أخرى مختصرة
+  // ===== MAINTENANCE =====
   const handleSaveMaintenance = async (record: MaintenanceRecord) => {
     if (!hasPermission('maintenance', 'add')) {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سجلات صيانة' : 'You do not have permission to add maintenance records');
@@ -426,21 +413,15 @@ export default function App() {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف سجلات الصيانة' : 'You do not have permission to delete maintenance records');
       return;
     }
-    const updated = maintenance.filter(m => m.id !== id);
-    setMaintenance(updated);
-    await storage.saveMaintenanceRecords(updated);
-  };
-
-  const handleSaveGarage = async (g: Garage) => {
-    if (!hasPermission('maintenance', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة كراجات' : 'You do not have permission to add garages');
-      return;
+    try {
+      await storage.deleteMaintenanceRecord(id);
+      setMaintenance(prev => prev.filter(m => m.id !== id));
+    } catch (error) {
+      alert('Failed to delete maintenance record');
     }
-    const updated = [g, ...garages];
-    setGarages(updated);
-    await storage.saveGarages(updated);
   };
 
+  // ===== FUEL =====
   const handleSaveFuel = async (f: FuelRecord) => {
     if (!hasPermission('fuel', 'add')) {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سجلات وقود' : 'You do not have permission to add fuel records');
@@ -456,11 +437,15 @@ export default function App() {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف سجلات الوقود' : 'You do not have permission to delete fuel records');
       return;
     }
-    const updated = fuel.filter(f => f.id !== id);
-    setFuel(updated);
-    await storage.saveFuelRecords(updated);
+    try {
+      await storage.deleteFuelRecord(id);
+      setFuel(prev => prev.filter(f => f.id !== id));
+    } catch (error) {
+      alert('Failed to delete fuel record');
+    }
   };
 
+  // ===== EXPENSES =====
   const handleSaveExpense = async (e: ExpenseRecord) => {
     if (!hasPermission('fuel', 'add')) {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة مصاريف' : 'You do not have permission to add expenses');
@@ -476,11 +461,73 @@ export default function App() {
       alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف المصاريف' : 'You do not have permission to delete expenses');
       return;
     }
-    const updated = expenses.filter(e => e.id !== id);
-    setExpenses(updated);
-    await storage.saveExpenseRecords(updated);
+    try {
+      await storage.deleteExpenseRecord(id);
+      setExpenses(prev => prev.filter(e => e.id !== id));
+    } catch (error) {
+      alert('Failed to delete expense');
+    }
   };
 
+  // ===== GARAGES =====
+  const handleSaveGarage = async (g: Garage) => {
+    if (!hasPermission('maintenance', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة كراجات' : 'You do not have permission to add garages');
+      return;
+    }
+    const updated = [g, ...garages];
+    setGarages(updated);
+    await storage.saveGarages(updated);
+  };
+
+  const handleDeleteGarage = async (id: string) => {
+    if (!hasPermission('maintenance', 'delete')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف الكراجات' : 'You do not have permission to delete garages');
+      return;
+    }
+    try {
+      await storage.deleteGarage(id);
+      setGarages(prev => prev.filter(g => g.id !== id));
+    } catch (error) {
+      alert('Failed to delete garage');
+    }
+  };
+
+  // ===== CHECKOUT =====
+  const handleSaveCheckout = async (session: CheckoutSession) => {
+    if (!hasPermission('checkout', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة جلسات استلام' : 'You do not have permission to add checkout sessions');
+      return;
+    }
+    const updated = [session, ...checkouts];
+    setCheckouts(updated);
+    await storage.saveCheckoutSessions(updated);
+  };
+
+  const handleDeleteCheckout = async (id: string) => {
+    if (!hasPermission('checkout', 'delete')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف جلسات الاستلام' : 'You do not have permission to delete checkout sessions');
+      return;
+    }
+    try {
+      await storage.deleteCheckoutSession(id);
+      setCheckouts(prev => prev.filter(c => c.id !== id));
+    } catch (error) {
+      alert('Failed to delete checkout session');
+    }
+  };
+
+  const handleReturnVehicle = async (sessionId: string, returnData: Partial<CheckoutSession>) => {
+    if (!hasPermission('checkout', 'edit')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لتعديل جلسات الاستلام' : 'You do not have permission to edit checkout sessions');
+      return;
+    }
+    const updated = checkouts.map(c => c.id === sessionId ? { ...c, ...returnData } : c);
+    setCheckouts(updated);
+    await storage.saveCheckoutSessions(updated);
+  };
+
+  // ===== SETTINGS =====
   const handleSaveSettings = (newSettings: CompanySettings) => {
     const targetCompId = activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId;
     const updatedCompanies = companies.map(c => {
@@ -515,6 +562,19 @@ export default function App() {
     const docsWithComp = docs.map(d => ({ ...d, companyId: d.companyId || compId }));
     setDocuments(docsWithComp);
     await storage.saveDocuments(docsWithComp);
+  };
+
+  const handleDeleteDocument = async (id: string) => {
+    if (!hasPermission('settings', 'delete')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف المستندات' : 'You do not have permission to delete documents');
+      return;
+    }
+    try {
+      await storage.deleteDocument(id);
+      setDocuments(prev => prev.filter(d => d.id !== id));
+    } catch (error) {
+      alert('Failed to delete document');
+    }
   };
 
   const handlePrintReceipt = (session: CheckoutSession) => {
@@ -561,6 +621,10 @@ export default function App() {
       <LoginScreen
         lang={lang}
         onLogin={() => {}}
+        logoUrl="/yamanix-logo.png"
+        supportEmail="bahaa.it2020@gmail.com"
+        supportPhone="+971 58 669 2733"
+        copyrightText="جميع الحقوق محفوظة © 2026\nفريق YAMANIX TEAM & BAHAA NASIR"
       />
     );
   }
@@ -572,7 +636,7 @@ export default function App() {
   const isAllowed = currentNavItem ? hasPermission(currentNavItem.module, 'view') : false;
 
   // ============================================================
-  // التصيير الرئيسي (مع تعديل العرض لاستغلال المساحة بالكامل)
+  // التصيير الرئيسي
   // ============================================================
   return (
     <div className={`min-h-screen bg-slate-100 dark:bg-[#0a0b0d] text-slate-800 dark:text-gray-200 font-sans transition-colors duration-200 ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`}>
@@ -719,20 +783,19 @@ export default function App() {
             {activeTab === 'dashboard' && <DashboardView vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} settings={currentCompanySettings} onNavigateTab={setActiveTab} lang={lang} />}
             {activeTab === 'vehicles' && <VehiclesView vehicles={filteredVehicles} drivers={filteredDrivers} onSaveVehicle={handleSaveVehicle} onDeleteVehicle={handleDeleteVehicle} lang={lang} />}
             {activeTab === 'drivers' && <DriversView drivers={filteredDrivers} vehicles={filteredVehicles} onSaveDriver={handleSaveDriver} onDeleteDriver={handleDeleteDriver} lang={lang} />}
-            {activeTab === 'checkout' && <CheckoutHub vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} settings={currentCompanySettings} onSaveCheckout={handleSaveCheckout} onReturnVehicle={handleReturnVehicle} onPrintReceipt={handlePrintReceipt} lang={lang} />}
-            {activeTab === 'maintenance' && <MaintenanceView maintenance={filteredMaintenance} vehicles={filteredVehicles} garages={filteredGarages} settings={currentCompanySettings} onSaveMaintenance={handleSaveMaintenance} onDeleteMaintenance={handleDeleteMaintenance} onSaveGarage={handleSaveGarage} lang={lang} />}
-            {activeTab === 'fuel' && <FuelExpensesView fuel={filteredFuel} expenses={filteredExpenses} vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} garages={filteredGarages} maintenance={filteredMaintenance} onSaveFuel={handleSaveFuel} onDeleteFuel={handleDeleteFuel} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} onSaveMaintenance={handleSaveMaintenance} lang={lang} />}
+            {activeTab === 'checkout' && <CheckoutHub vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} settings={currentCompanySettings} onSaveCheckout={handleSaveCheckout} onReturnVehicle={handleReturnVehicle} onDeleteCheckout={handleDeleteCheckout} onPrintReceipt={handlePrintReceipt} lang={lang} />}
+            {activeTab === 'maintenance' && <MaintenanceView maintenance={filteredMaintenance} vehicles={filteredVehicles} garages={filteredGarages} settings={currentCompanySettings} onSaveMaintenance={handleSaveMaintenance} onDeleteMaintenance={handleDeleteMaintenance} onSaveGarage={handleSaveGarage} onDeleteGarage={handleDeleteGarage} lang={lang} />}
+            {activeTab === 'fuel' && <FuelExpensesView fuel={filteredFuel} expenses={filteredExpenses} vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} garages={filteredGarages} maintenance={filteredMaintenance} onSaveFuel={handleSaveFuel} onDeleteFuel={handleDeleteFuel} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} onSaveMaintenance={handleSaveMaintenance} onDeleteMaintenance={handleDeleteMaintenance} lang={lang} />}
             {activeTab === 'expiries' && <ExpiriesView vehicles={filteredVehicles} drivers={filteredDrivers} onSaveVehicle={handleSaveVehicle} lang={lang} />}
             {activeTab === 'reports' && <PrintReportsView settings={currentCompanySettings} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} activeReceiptSession={receiptSession} onClearReceiptSession={() => setReceiptSession(null)} onSaveSettings={handleSaveSettings} lang={lang} />}
             {activeTab === 'advisor' && <AIFleetAdvisor vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} settings={currentCompanySettings} onSaveVehicle={handleSaveVehicle} onNavigateTab={setActiveTab} lang={lang} />}
-            {activeTab === 'settings' && <CompanySettingsView settings={currentCompanySettings} documents={filteredDocuments} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} garages={filteredGarages} expenses={filteredExpenses} lang={lang} companies={companies} activeCompanyId={activeCompanyId} onSave={handleSaveSettings} onSaveDocuments={handleSaveDocuments} onSelectCompany={handleSelectCompany} onAddCompany={handleAddCompany} onDeleteCompany={handleDeleteCompany} />}
+            {activeTab === 'settings' && <CompanySettingsView settings={currentCompanySettings} documents={filteredDocuments} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} garages={filteredGarages} expenses={filteredExpenses} lang={lang} companies={companies} activeCompanyId={activeCompanyId} onSave={handleSaveSettings} onSaveDocuments={handleSaveDocuments} onDeleteDocument={handleDeleteDocument} onSelectCompany={handleSelectCompany} onAddCompany={handleAddCompany} onDeleteCompany={handleDeleteCompany} />}
             {activeTab === 'users' && profile?.role === 'admin' && (
               <UserManagement
                 profile={profile}
                 companies={companies}
                 lang={lang}
                 onUpdate={() => {
-                  // إعادة تحميل البيانات بعد التحديث
                   window.location.reload();
                 }}
               />

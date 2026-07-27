@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Profile, Company } from '../types';
 import { Language, t } from '../lib/i18n';
-import { UserCog, Users, Plus, Edit, Trash2, Check, X, Shield, Building2, Save, Eye, EyeOff } from 'lucide-react';
+import { UserCog, Users, Plus, Edit, Trash2, Shield, Building2, Save } from 'lucide-react';
 
 interface UserManagementProps {
   profile: Profile;
@@ -23,7 +23,6 @@ const DEFAULT_PERMISSIONS = {
 };
 
 export const UserManagement: React.FC<UserManagementProps> = ({ profile, companies, lang, onUpdate }) => {
-  const isAr = lang === 'ar';
   const [users, setUsers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -75,7 +74,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
     setShowAddModal(true);
   };
 
-  // === استدعاء API من الخادم الخلفي ===
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setActionLoading(true);
@@ -83,19 +81,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) throw new Error('No session');
 
-      let url = '/api/admin/create-user';
-      let method = 'POST';
-      let body: any = {
-        email: formEmail,
-        password: formPassword,
-        role: formRole,
-        companyId: formCompanyId || null,
-        permissions: formPermissions
-      };
-
       if (editingUser) {
-        // لتعديل المستخدم، نستخدم endpoint آخر (يمكنك إضافته لاحقاً)
-        // مؤقتاً نستخدم update مباشرة من supabase (لكن هذا سيتطلب تعديل)
         const { error } = await supabase
           .from('profiles')
           .update({
@@ -106,16 +92,27 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
           .eq('id', editingUser.id);
         if (error) throw error;
       } else {
-        const response = await fetch(url, {
-          method,
+        const response = await fetch('/api/admin/create-user', {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`
           },
-          body: JSON.stringify(body)
+          body: JSON.stringify({
+            email: formEmail,
+            password: formPassword,
+            role: formRole,
+            companyId: formCompanyId || null,
+            permissions: formPermissions
+          })
         });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Failed to create user');
+
+        const text = await response.text();
+        if (!response.ok) {
+          throw new Error(`Server error: ${text}`);
+        }
+        const data = JSON.parse(text);
+        if (data.error) throw new Error(data.error);
       }
 
       await loadUsers();
@@ -133,22 +130,22 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
     if (!confirm(t('confirmDeleteUser', lang))) return;
     setActionLoading(true);
     try {
-      // حذف المستخدم عبر API (يمكن إضافة endpoint)
-      // مؤقتاً نستخدم supabase.admin.deleteUser (لكن هذا يتطلب service_role)
-      // نفضل استخدام endpoint في server.ts
       const session = (await supabase.auth.getSession()).data.session;
       if (!session) throw new Error('No session');
 
-      const response = await fetch('/api/admin/delete-user', {
+      const response = await fetch(`/api/admin/delete-user/${userId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ userId })
+          'Authorization': `Bearer ${session.access_token}`
+        }
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || 'Failed to delete user');
+
+      const text = await response.text();
+      if (!response.ok) {
+        throw new Error(`Server error: ${text}`);
+      }
+      const data = JSON.parse(text);
+      if (data.error) throw new Error(data.error);
 
       await loadUsers();
       onUpdate();
@@ -173,6 +170,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -189,6 +187,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
         </button>
       </div>
 
+      {/* Table */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -258,7 +257,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ profile, compani
         </div>
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">

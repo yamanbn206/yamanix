@@ -115,7 +115,7 @@ export const translations = {
     daysRemaining: "days remaining",
     overdue: "Overdue",
 
-    // ===== VEHICLES (all keys used in VehiclesView) =====
+    // ===== VEHICLES =====
     addNewVehicle: "Add New Vehicle to Fleet",
     scanRegistration: "Scan Vehicle Registration (OCR)",
     ocrDescription: "Extract make, model, plate number and year automatically",
@@ -142,7 +142,6 @@ export const translations = {
     licenseExpiry: "License Expiry",
     insuranceExpiry: "Insurance Expiry",
     editComponents: "Edit Components",
-    delete: "Delete",
     filterAll: "All",
     filterAvailable: "Available",
     filterCheckedOut: "Checked Out",
@@ -163,7 +162,7 @@ export const translations = {
     vehicleDetails: "Vehicle Details",
     scanRegistrationShort: "Scan Registration",
 
-    // ===== DRIVERS (all keys used in DriversView) =====
+    // ===== DRIVERS =====
     addNewDriver: "Add New Driver / Staff",
     scanLicense: "Scan Driver License (OCR)",
     ocrLicenseDescription: "Extract name, ID and license number automatically",
@@ -633,7 +632,7 @@ export const translations = {
     daysRemaining: "يوم متبقي",
     overdue: "متأخر",
 
-    // ===== VEHICLES (جميع النصوص المستخدمة في VehiclesView) =====
+    // ===== VEHICLES =====
     addNewVehicle: "إضافة مركبة جديدة للأسطول",
     scanRegistration: "مسح رخصة سير المركبة / الاستمارة بالكاميرا (OCR)",
     ocrDescription: "استخراج الماركة، رقم اللوحة، الموديل وسنة الصنع تلقائياً",
@@ -660,7 +659,6 @@ export const translations = {
     licenseExpiry: "انتهاء الاستمارة",
     insuranceExpiry: "انتهاء التأمين",
     editComponents: "تعديل المكونات",
-    delete: "حذف",
     filterAll: "الكل",
     filterAvailable: "جاهزة ومتوفرة",
     filterCheckedOut: "مستلمة بالخارج",
@@ -681,7 +679,7 @@ export const translations = {
     vehicleDetails: "تفاصيل المركبة",
     scanRegistrationShort: "مسح الاستمارة",
 
-    // ===== DRIVERS (جميع النصوص المستخدمة في DriversView) =====
+    // ===== DRIVERS =====
     addNewDriver: "إضافة سائق / موظف جديد",
     scanLicense: "مسح رخصة القيادة بالكاميرا (OCR)",
     ocrLicenseDescription: "استخراج الاسم، الهوية ورقم الرخصة تلقائياً",
