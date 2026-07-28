@@ -29,6 +29,7 @@ interface MaintenanceViewProps {
   onSaveMaintenance: (record: MaintenanceRecord) => void;
   onDeleteMaintenance: (id: string) => void;
   onSaveGarage: (garage: Garage) => void;
+  onDeleteGarage?: (id: string) => void;
   lang?: Language;
 }
 
@@ -40,6 +41,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
   onSaveMaintenance,
   onDeleteMaintenance,
   onSaveGarage,
+  onDeleteGarage,
   lang = 'en'
 }) => {
   const isAr = lang === 'ar';
@@ -169,7 +171,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
             <Wrench className="w-7 h-7 text-blue-400" />
-            {isAr ? 'إدارة الصيانة والتصليح والقطع والكراجات' : t('maintenanceGarages', lang)}
+            {isAr ? 'إدارة الصيانة والتصليح والقطع والكراجات' : 'Fleet Maintenance, Repairs & Garages Management'}
           </h2>
           <p className="text-slate-300 text-sm mt-1">
             {isAr 
@@ -184,7 +186,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
             className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl text-xs transition flex items-center gap-2"
           >
             <Building2 className="w-4 h-4" />
-            {isAr ? 'إضافة كراج / ورشة' : t('addGarage', lang)}
+            {isAr ? 'إضافة كراج / ورشة' : 'Add Garage / Workshop'}
           </button>
 
           <button
@@ -192,7 +194,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
             className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm shadow transition flex items-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            {isAr ? 'تسجيل فاتورة صيانة جديدة' : t('addMaintenance', lang)}
+            {isAr ? 'تسجيل فاتورة صيانة جديدة' : 'Record New Invoice'}
           </button>
         </div>
       </div>
@@ -212,7 +214,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
           className={`pb-3 px-4 font-bold text-sm transition border-b-2 whitespace-nowrap flex items-center gap-2 ${activeTab === 'calendar' ? 'border-blue-600 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
         >
           <CalendarIcon className="w-4 h-4" />
-          {isAr ? 'نمط التقويم وتداخلات الصيانة' : t('calendarView', lang)}
+          {isAr ? 'نمط التقويم وتداخلات الصيانة' : 'Calendar View & Service Overlaps'}
           {overlapEntries.length > 0 && (
             <span className="px-2 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-extrabold animate-pulse">
               {overlapEntries.length} {isAr ? 'تداخلات' : 'overlaps'}
@@ -298,7 +300,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
                       onClick={() => onDeleteMaintenance(record.id)}
                       className="text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1"
                     >
-                      <Trash2 className="w-3.5 h-3.5" /> {isAr ? 'حذف الفاتورة' : t('delete', lang)}
+                      <Trash2 className="w-3.5 h-3.5" /> {isAr ? 'حذف الفاتورة' : 'Delete Record'}
                     </button>
                   </div>
                 </div>
@@ -318,7 +320,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
               </div>
               <div>
                 <h3 className="font-bold text-base text-white flex items-center gap-2">
-                  {isAr ? 'كاشف تداخلات الصيانة الأسطولية' : t('overlapDetector', lang)}
+                  {isAr ? 'كاشف تداخلات الصيانة الأسطولية' : 'Fleet Maintenance Service Overlap Detector'}
                   {overlapEntries.length > 0 && (
                     <span className="px-2.5 py-0.5 bg-rose-500 text-white rounded-full text-xs font-bold">
                       {overlapEntries.length} {isAr ? 'أيام بها تداخل' : 'overlap days'}
@@ -326,14 +328,14 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
                   )}
                 </h3>
                 <p className="text-xs mt-0.5 opacity-80">
-                  {overlapEntries.length > 0 ? (isAr ? 'تنبيه: تم رصد أيام بها أكثر من مركبة واحدة تحت الصيانة بنفس الوقت!' : t('overlapAlert', lang)) : (isAr ? 'ممتاز! لا يوجد أي تداخل في جدول الصيانة الحالي.' : t('allClear', lang))}
+                  {overlapEntries.length > 0 ? (isAr ? 'تنبيه: تم رصد أيام بها أكثر من مركبة واحدة تحت الصيانة بنفس الوقت!' : 'Alert: Detected dates with multiple vehicles undergoing maintenance simultaneously.') : (isAr ? 'ممتاز! لا يوجد أي تداخل في جدول الصيانة الحالي.' : 'All clear! No overlapping maintenance dates detected.')}
                 </p>
               </div>
             </div>
 
             {overlapEntries.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold text-slate-400">{isAr ? 'الانتقال للتداخلات:' : t('jumpToOverlap', lang)}</span>
+                <span className="text-xs font-bold text-slate-400">{isAr ? 'الانتقال للتداخلات:' : 'Jump to Overlap:'}</span>
                 {overlapEntries.slice(0, 4).map(([dateStr, recs]) => (
                   <button
                     key={dateStr}
@@ -447,7 +449,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
                 <div className="flex items-center gap-2">
                   <Clock className="w-5 h-5 text-blue-400" />
                   <h3 className="font-bold text-base text-white">
-                    {isAr ? `سجلات وتفاصيل يوم: ${selectedDateStr}` : `${t('selectedDateDetails', lang)} ${selectedDateStr}`}
+                    {isAr ? `سجلات وتفاصيل يوم: ${selectedDateStr}` : `Maintenance Details for: ${selectedDateStr}`}
                   </h3>
                   <span className="text-xs px-2.5 py-0.5 bg-slate-800 text-slate-300 rounded-full border border-slate-700">
                     {selectedDayRecords.length} {isAr ? 'عقود / صيانة' : 'records'}
@@ -457,7 +459,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
                 {selectedDayRecords.length > 1 && (
                   <span className="px-3 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5">
                     <AlertTriangle className="w-4 h-4 text-rose-400" />
-                    {isAr ? 'تأكيد تداخل طاقة الورش والأسطول!' : t('capacityWarning', lang)}
+                    {isAr ? 'تأكيد تداخل طاقة الورش والأسطول!' : 'Overlap Capacity Warning!'}
                   </span>
                 )}
               </div>
@@ -521,11 +523,11 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
         </div>
       )}
 
-      {/* GARAGES TAB */}
+      {/* GARAGES TAB - مع زر حذف لكل كراج */}
       {activeTab === 'garages' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {garages.map(garage => (
-            <div key={garage.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-3">
+            <div key={garage.id} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-3 relative">
               <div className="flex items-start justify-between">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white">{garage.name}</h3>
@@ -538,6 +540,23 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
                 <p><strong>{isAr ? 'مسؤول الورشة:' : 'Contact Person:'}</strong> {garage.contactPerson || 'Manager'}</p>
                 <p><strong>{isAr ? 'رقم الجوال:' : 'Phone:'}</strong> {garage.phone}</p>
                 <p><strong>{isAr ? 'العنوان:' : 'Address:'}</strong> {garage.address}</p>
+              </div>
+
+              {/* زر الحذف */}
+              <div className="flex items-center justify-between border-t pt-3 border-slate-100 dark:border-slate-700">
+                <span className="text-xs text-slate-500">ID: {garage.id.slice(0, 8)}</span>
+                <button
+                  onClick={() => {
+                    if (confirm(isAr ? `هل أنت متأكد من حذف الكراج (${garage.name})؟` : `Are you sure you want to delete ${garage.name}?`)) {
+                      if (onDeleteGarage) {
+                        onDeleteGarage(garage.id);
+                      }
+                    }
+                  }}
+                  className="text-xs text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> {isAr ? 'حذف' : 'Delete'}
+                </button>
               </div>
             </div>
           ))}
@@ -634,7 +653,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
               </div>
 
               <div className="flex justify-end gap-3 pt-3">
-                <button type="button" onClick={() => setShowRecordModal(false)} className="px-4 py-2 border rounded-lg text-xs font-bold text-slate-600">{isAr ? 'إلغاء' : t('cancel', lang)}</button>
+                <button type="button" onClick={() => setShowRecordModal(false)} className="px-4 py-2 border rounded-lg text-xs font-bold text-slate-600">{isAr ? 'إلغاء' : 'Cancel'}</button>
                 <button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm shadow transition">{isAr ? 'حفظ وتسجيل الفاتورة' : 'Save Invoice'}</button>
               </div>
             </form>
@@ -648,7 +667,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
             <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-700">
               <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-blue-600" />
-                {isAr ? 'إضافة كراج / ورشة صيانة' : t('addGarage', lang)}
+                {isAr ? 'إضافة كراج / ورشة صيانة' : 'Add Garage / Workshop'}
               </h3>
               <button onClick={() => setShowGarageModal(false)} className="text-slate-400 font-bold text-lg">✕</button>
             </div>
@@ -670,7 +689,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowGarageModal(false)} className="px-3 py-1.5 border rounded text-xs font-bold">{isAr ? 'إلغاء' : t('cancel', lang)}</button>
+                <button type="button" onClick={() => setShowGarageModal(false)} className="px-3 py-1.5 border rounded text-xs font-bold">{isAr ? 'إلغاء' : 'Cancel'}</button>
                 <button type="submit" className="px-4 py-1.5 bg-blue-600 text-white font-bold rounded text-xs shadow">{isAr ? 'حفظ الورشة' : 'Save Garage'}</button>
               </div>
             </form>

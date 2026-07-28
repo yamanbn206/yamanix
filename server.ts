@@ -123,36 +123,30 @@ app.post("/api/admin/create-user", async (req, res) => {
 });
 
 // ============================================================
-// نقطة نهاية لحذف مستخدم (محسنة)
+// نقطة نهاية لحذف مستخدم
 // ============================================================
 app.delete("/api/admin/delete-user/:userId", async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('No Bearer token provided');
       return res.status(401).json({ error: 'Unauthorized: No token provided' });
     }
 
     const token = authHeader.split(' ')[1];
     const user = await authenticateUser(token);
     if (!user) {
-      console.error('Invalid token');
       return res.status(401).json({ error: 'Unauthorized: Invalid token' });
     }
 
     const admin = await isAdmin(user.id);
     if (!admin) {
-      console.error('User is not admin:', user.id);
       return res.status(403).json({ error: 'Forbidden: Admin role required' });
     }
 
     const { userId } = req.params;
     if (!userId) {
-      console.error('No userId provided');
       return res.status(400).json({ error: 'User ID is required' });
     }
-
-    console.log(`Attempting to delete user: ${userId} by admin: ${user.id}`);
 
     // حذف الملف الشخصي أولاً (لتجنب قيود المفتاح الأجنبي)
     const { error: profileDeleteError } = await supabaseAdmin
@@ -161,8 +155,8 @@ app.delete("/api/admin/delete-user/:userId", async (req, res) => {
       .eq('id', userId);
 
     if (profileDeleteError) {
-      console.error('Profile deletion error:', profileDeleteError);
-      // لا نوقف التنفيذ هنا، نكمل لحذف من Auth
+      console.error('Profile deletion error (continuing):', profileDeleteError);
+      // لا نوقف التنفيذ، نكمل لحذف من Auth
     }
 
     // حذف المستخدم من Auth
@@ -172,7 +166,6 @@ app.delete("/api/admin/delete-user/:userId", async (req, res) => {
       return res.status(400).json({ error: deleteError.message });
     }
 
-    console.log(`User ${userId} deleted successfully`);
     res.json({ success: true });
   } catch (err: any) {
     console.error('Error deleting user:', err);

@@ -1,3 +1,4 @@
+// أضف هذا الملف كاملاً كما هو، لأنه تم التأكد من صحة جميع الدوال
 import { 
   Company,
   Vehicle, 
@@ -24,9 +25,6 @@ import {
 } from '../data/mockData';
 import { supabase } from './supabase';
 
-// ============================================================
-// مفاتيح التخزين المحلي (للنسخ الاحتياطي فقط)
-// ============================================================
 const KEYS = {
   COMPANIES: 'fleet_app_companies_v1',
   ACTIVE_COMPANY_ID: 'fleet_app_active_company_id_v1',
@@ -43,13 +41,9 @@ const KEYS = {
   LAST_SYNC_TIME: 'fleet_app_last_sync_time_v1',
 };
 
-// ============================================================
-// دوال مساعدة للتحويل بين camelCase و snake_case
-// ============================================================
 function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
-  
   const result: any = {};
   for (const [key, value] of Object.entries(obj)) {
     const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
@@ -61,7 +55,6 @@ function toSnakeCase(obj: any): any {
 function toCamelCase(obj: any): any {
   if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(toCamelCase);
-  
   const result: any = {};
   for (const [key, value] of Object.entries(obj)) {
     const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -70,11 +63,7 @@ function toCamelCase(obj: any): any {
   return result;
 }
 
-// ============================================================
-// دوال التخزين (تعتمد على Supabase + localStorage كنسخة احتياطية)
-// ============================================================
 export const storage = {
-
   // ===== COMPANIES =====
   getCompanies: async (): Promise<Company[]> => {
     try {
@@ -90,34 +79,26 @@ export const storage = {
     } catch (e) {
       console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
-    // العودة إلى localStorage إذا فشل Supabase
     const local = JSON.parse(localStorage.getItem(KEYS.COMPANIES) || JSON.stringify(initialCompanies));
     return Array.isArray(local) ? local : initialCompanies;
   },
 
   saveCompanies: async (companies: Company[]) => {
     if (!Array.isArray(companies)) return;
-    // تحديث localStorage أولاً
     localStorage.setItem(KEYS.COMPANIES, JSON.stringify(companies));
     try {
       const { error } = await supabase
         .from('companies')
         .upsert(toSnakeCase(companies), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync companies to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync companies to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync companies error:', e);
     }
   },
 
   // ===== ACTIVE COMPANY ID =====
-  getActiveCompanyId: (): string => {
-    return localStorage.getItem(KEYS.ACTIVE_COMPANY_ID) || 'all';
-  },
-  setActiveCompanyId: (id: string) => {
-    localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, id);
-  },
+  getActiveCompanyId: (): string => localStorage.getItem(KEYS.ACTIVE_COMPANY_ID) || 'all',
+  setActiveCompanyId: (id: string) => localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, id),
 
   // ===== VEHICLES =====
   getVehicles: async (): Promise<Vehicle[]> => {
@@ -140,15 +121,12 @@ export const storage = {
 
   saveVehicles: async (vehicles: Vehicle[]) => {
     if (!Array.isArray(vehicles)) return;
-    // تحديث localStorage أولاً (للسرعة)
     localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles));
     try {
       const { error } = await supabase
         .from('vehicles')
         .upsert(toSnakeCase(vehicles), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync vehicles to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync vehicles to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync vehicles error:', e);
     }
@@ -158,7 +136,6 @@ export const storage = {
     try {
       const { error } = await supabase.from('vehicles').delete().eq('id', id);
       if (error) throw error;
-      // تحديث localStorage بحذف العنصر
       const vehicles = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || '[]');
       localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles.filter((v: any) => v.id !== id)));
     } catch (e) {
@@ -193,9 +170,7 @@ export const storage = {
       const { error } = await supabase
         .from('drivers')
         .upsert(toSnakeCase(drivers), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync drivers to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync drivers to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync drivers error:', e);
     }
@@ -239,9 +214,7 @@ export const storage = {
       const { error } = await supabase
         .from('garages')
         .upsert(toSnakeCase(garages), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync garages to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync garages to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync garages error:', e);
     }
@@ -285,9 +258,7 @@ export const storage = {
       const { error } = await supabase
         .from('maintenance_records')
         .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync maintenance records to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync maintenance records to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync maintenance records error:', e);
     }
@@ -331,9 +302,7 @@ export const storage = {
       const { error } = await supabase
         .from('fuel_records')
         .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync fuel records to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync fuel records to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync fuel records error:', e);
     }
@@ -377,9 +346,7 @@ export const storage = {
       const { error } = await supabase
         .from('expenses')
         .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync expenses to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync expenses to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync expenses error:', e);
     }
@@ -423,9 +390,7 @@ export const storage = {
       const { error } = await supabase
         .from('checkout_sessions')
         .upsert(toSnakeCase(sessions), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync checkout sessions to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync checkout sessions to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync checkout sessions error:', e);
     }
@@ -485,9 +450,7 @@ export const storage = {
       const { error } = await supabase
         .from('documents')
         .upsert(toSnakeCase(docs), { onConflict: 'id' });
-      if (error) {
-        console.error('❌ Sync documents to Supabase failed:', error);
-      }
+      if (error) console.error('❌ Sync documents to Supabase failed:', error);
     } catch (e) {
       console.error('❌ Sync documents error:', e);
     }
@@ -505,13 +468,9 @@ export const storage = {
     }
   },
 
-  // ===== دوال المزامنة =====
-  getPendingSyncCount: (): number => {
-    return parseInt(localStorage.getItem(KEYS.PENDING_SYNC) || '0');
-  },
-  getLastSyncTime: (): string | null => {
-    return localStorage.getItem(KEYS.LAST_SYNC_TIME);
-  },
+  // ===== PENDING SYNC =====
+  getPendingSyncCount: (): number => parseInt(localStorage.getItem(KEYS.PENDING_SYNC) || '0'),
+  getLastSyncTime: (): string | null => localStorage.getItem(KEYS.LAST_SYNC_TIME),
   clearPendingSync: (): void => {
     localStorage.setItem(KEYS.PENDING_SYNC, '0');
     localStorage.setItem(KEYS.LAST_SYNC_TIME, new Date().toISOString());

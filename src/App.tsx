@@ -57,6 +57,9 @@ import {
   LogOut
 } from 'lucide-react';
 
+// الشعار الافتراضي للنظام (يُستخدم للشركات التي لم ترفع لوجو)
+const DEFAULT_LOGO_URL = '/yamanix-logo.png';
+
 export default function App() {
   // ===== اللغة =====
   const [lang, setLang] = useState<Language>(() => {
@@ -139,7 +142,7 @@ export default function App() {
   }, []);
 
   // ============================================================
-  // تحميل البيانات (تأكد من ظهور الشركات)
+  // تحميل البيانات (مع إعادة المحاولة إذا فشل)
   // ============================================================
   useEffect(() => {
     if (!session) return;
@@ -156,6 +159,7 @@ export default function App() {
           storage.getCheckoutSessions(),
           storage.getDocuments()
         ]);
+        // التأكد من أن البيانات مصفوفة
         setCompanies(Array.isArray(companiesData) ? companiesData : []);
         setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
         setDrivers(Array.isArray(driversData) ? driversData : []);
@@ -167,6 +171,8 @@ export default function App() {
         setDocuments(Array.isArray(documentsData) ? documentsData : []);
       } catch (error) {
         console.error('Failed to load data:', error);
+        // إعادة المحاولة بعد 5 ثوانٍ في حال فشل الاتصال
+        setTimeout(loadData, 5000);
       }
     };
     loadData();
@@ -201,55 +207,41 @@ export default function App() {
   };
 
   // ============================================================
-  // إعدادات الشركة الحالية (مع الحفاظ على YAMANIX كاسم افتراضي)
+  // إعدادات الشركة الحالية (مع استخدام اللوجو الافتراضي)
   // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
-    // إذا كانت الشركة النشطة هي "all" (عرض الكل)، نعرض اسم النظام الأساسي
     if (activeCompanyId === 'all') {
       return {
-        companyName: 'YAMANIX',
-        tagline: 'Fleet Management System',
-        logoUrl: '/yamanix-logo.png', // شعار النظام الأساسي
+        companyName: lang === 'ar' ? 'مجموعة الشركات المجمّعة' : 'Combined Corporate Group',
+        tagline: lang === 'ar' ? 'عرض شامِل ومجمّع لكافة الشركات والبيانات' : 'Combined overview across all registered companies',
+        logoUrl: DEFAULT_LOGO_URL,  // <-- استخدام شعار النظام الافتراضي
         phone: '+966 50 123 4567',
-        email: 'info@yamanix.com',
-        address: 'Saudi Arabia',
-        commercialRegNumber: 'CR-YAMANIX',
-        printHeaderNote: 'YAMANIX Fleet Management System',
-        printFooterNote: 'YAMANIX | All Rights Reserved',
+        email: 'fleet@yamanix.com',
+        address: lang === 'ar' ? 'المملكة العربية السعودية' : 'Saudi Arabia',
+        commercialRegNumber: 'CR-MULTITENANT',
+        printHeaderNote: 'مستند مجمّع صادر عن نظام إدارة الأسطول الموحد',
+        printFooterNote: 'نظام إدارة الأسطول والشركات المتعددة',
         currency: 'SAR'
       };
     }
-    // إذا كانت شركة محددة، نعرض بياناتها مع الاحتفاظ بشعار النظام الأساسي
     const comp = companies.find(c => c.id === activeCompanyId);
     if (comp) {
       return {
         companyId: comp.id,
-        companyName: comp.name || 'YAMANIX',
-        tagline: comp.tagline || 'Fleet Management',
-        logoUrl: '/yamanix-logo.png', // شعار النظام الأساسي دائماً
-        phone: comp.phone || '+966 50 123 4567',
-        email: comp.email || 'info@yamanix.com',
-        address: comp.address || 'Saudi Arabia',
-        commercialRegNumber: comp.commercialRegNumber || 'CR-YAMANIX',
-        printHeaderNote: settings.printHeaderNote || 'YAMANIX Fleet Management System',
-        printFooterNote: settings.printFooterNote || 'YAMANIX | All Rights Reserved',
-        currency: comp.currency || 'SAR'
+        companyName: comp.name,
+        tagline: comp.tagline || settings.tagline,
+        logoUrl: comp.logoUrl || DEFAULT_LOGO_URL,  // <-- استخدام الافتراضي إذا لم يوجد لوجو
+        phone: comp.phone || settings.phone,
+        email: comp.email || settings.email,
+        address: comp.address || settings.address,
+        commercialRegNumber: comp.commercialRegNumber || settings.commercialRegNumber,
+        printHeaderNote: settings.printHeaderNote,
+        printFooterNote: settings.printFooterNote,
+        currency: comp.currency || settings.currency || 'SAR'
       };
     }
-    // القيمة الافتراضية النهائية
-    return {
-      companyName: 'YAMANIX',
-      tagline: 'Fleet Management System',
-      logoUrl: '/yamanix-logo.png',
-      phone: '+966 50 123 4567',
-      email: 'info@yamanix.com',
-      address: 'Saudi Arabia',
-      commercialRegNumber: 'CR-YAMANIX',
-      printHeaderNote: 'YAMANIX Fleet Management System',
-      printFooterNote: 'YAMANIX | All Rights Reserved',
-      currency: 'SAR'
-    };
-  }, [activeCompanyId, companies, settings]);
+    return settings;
+  }, [activeCompanyId, companies, settings, lang]);
 
   // ============================================================
   // تصفية البيانات حسب الشركة النشطة
@@ -340,7 +332,9 @@ export default function App() {
   // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
+  // التحقق من الصلاحيات (إذا لم يكن هناك profile، نعتبر أن المستخدم أدمن)
   const hasPermission = (module: string, action: string = 'view') => {
+    if (!profile) return true; // أثناء التحميل أو إذا فشل جلب الملف الشخصي، نمنح صلاحية مؤقتة
     if (profile?.role === 'admin') return true;
     return profile?.permissions?.[module]?.[action] === true;
   };
@@ -435,6 +429,30 @@ export default function App() {
     }
   };
 
+  // ===== GARAGES =====
+  const handleSaveGarage = async (g: Garage) => {
+    if (!hasPermission('maintenance', 'add')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة كراجات' : 'You do not have permission to add garages');
+      return;
+    }
+    const updated = [g, ...garages];
+    setGarages(updated);
+    await storage.saveGarages(updated);
+  };
+
+  const handleDeleteGarage = async (id: string) => {
+    if (!hasPermission('maintenance', 'delete')) {
+      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف الكراجات' : 'You do not have permission to delete garages');
+      return;
+    }
+    try {
+      await storage.deleteGarage(id);
+      setGarages(prev => prev.filter(g => g.id !== id));
+    } catch (error) {
+      alert('Failed to delete garage');
+    }
+  };
+
   // ===== FUEL =====
   const handleSaveFuel = async (f: FuelRecord) => {
     if (!hasPermission('fuel', 'add')) {
@@ -483,30 +501,6 @@ export default function App() {
     }
   };
 
-  // ===== GARAGES =====
-  const handleSaveGarage = async (g: Garage) => {
-    if (!hasPermission('maintenance', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة كراجات' : 'You do not have permission to add garages');
-      return;
-    }
-    const updated = [g, ...garages];
-    setGarages(updated);
-    await storage.saveGarages(updated);
-  };
-
-  const handleDeleteGarage = async (id: string) => {
-    if (!hasPermission('maintenance', 'delete')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف الكراجات' : 'You do not have permission to delete garages');
-      return;
-    }
-    try {
-      await storage.deleteGarage(id);
-      setGarages(prev => prev.filter(g => g.id !== id));
-    } catch (error) {
-      alert('Failed to delete garage');
-    }
-  };
-
   // ===== CHECKOUT =====
   const handleSaveCheckout = async (session: CheckoutSession) => {
     if (!hasPermission('checkout', 'add')) {
@@ -541,7 +535,7 @@ export default function App() {
     await storage.saveCheckoutSessions(updated);
   };
 
-  // ===== SETTINGS =====
+  // ===== SETTINGS & DOCUMENTS =====
   const handleSaveSettings = (newSettings: CompanySettings) => {
     const targetCompId = activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId;
     const updatedCompanies = companies.map(c => {
@@ -550,7 +544,7 @@ export default function App() {
           ...c,
           name: newSettings.companyName,
           tagline: newSettings.tagline,
-          logoUrl: '/yamanix-logo.png', // الحفاظ على شعار النظام الأساسي
+          logoUrl: newSettings.logoUrl || DEFAULT_LOGO_URL,
           phone: newSettings.phone,
           email: newSettings.email,
           address: newSettings.address,
@@ -560,7 +554,6 @@ export default function App() {
       }
       return c;
     });
-
     setCompanies(updatedCompanies);
     storage.saveCompanies(updatedCompanies);
     setSettings(newSettings);
@@ -635,7 +628,7 @@ export default function App() {
       <LoginScreen
         lang={lang}
         onLogin={() => {}}
-        logoUrl="/yamanix-logo.png"
+        logoUrl={DEFAULT_LOGO_URL}
         supportEmail="bahaa.it2020@gmail.com"
         supportPhone="+971 58 669 2733"
         copyrightText="جميع الحقوق محفوظة © 2026\nفريق YAMANIX TEAM & BAHAA NASIR"
@@ -650,36 +643,24 @@ export default function App() {
   const isAllowed = currentNavItem ? hasPermission(currentNavItem.module, 'view') : false;
 
   // ============================================================
-  // التصيير الرئيسي
+  // التصيير الرئيسي (مع المحافظة على الهيكل الأصلي)
   // ============================================================
   return (
     <div className={`min-h-screen bg-slate-100 dark:bg-[#0a0b0d] text-slate-800 dark:text-gray-200 font-sans transition-colors duration-200 ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`}>
       <header className="no-print bg-white dark:bg-[#0f1115] text-slate-800 dark:text-white border-b border-slate-200 dark:border-gray-800 sticky top-0 z-40 shadow-xs dark:shadow-md">
         <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between max-w-full">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            {/* شعار النظام الأساسي YAMANIX */}
-            <img 
-              src="/yamanix-logo.png" 
-              alt="YAMANIX Logo" 
-              className="h-10 w-10 object-contain rounded-lg bg-slate-50 dark:bg-[#0a0b0d] p-1 border border-slate-200 dark:border-gray-800 flex-shrink-0"
-              onError={(e) => {
-                // إذا لم تظهر الصورة، نعرض الحرف Y كخيار احتياطي
-                (e.target as HTMLImageElement).style.display = 'none';
-                const parent = (e.target as HTMLImageElement).parentElement;
-                if (parent) {
-                  const fallback = document.createElement('div');
-                  fallback.className = 'w-10 h-10 bg-[#cbb26a] text-black font-extrabold rounded-lg flex items-center justify-center text-xl shadow-xs flex-shrink-0';
-                  fallback.textContent = 'Y';
-                  parent.prepend(fallback);
-                }
-              }}
-            />
+            {currentCompanySettings.logoUrl ? (
+              <img src={currentCompanySettings.logoUrl} alt="Logo" className="h-10 w-10 object-contain rounded-lg bg-slate-50 dark:bg-[#0a0b0d] p-1 border border-slate-200 dark:border-gray-800 flex-shrink-0" />
+            ) : (
+              <div className="w-10 h-10 bg-[#cbb26a] text-black font-extrabold rounded-lg flex items-center justify-center text-xl shadow-xs flex-shrink-0">
+                {currentCompanySettings.companyName.charAt(0)}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
-              <h1 className="text-base font-bold leading-tight text-slate-900 dark:text-white tracking-wide truncate">
-                {activeCompanyId === 'all' ? 'YAMANIX' : (companies.find(c => c.id === activeCompanyId)?.name || 'YAMANIX')}
-              </h1>
+              <h1 className="text-base font-bold leading-tight text-slate-900 dark:text-white tracking-wide truncate">{currentCompanySettings.companyName}</h1>
               <p className="text-[11px] text-slate-500 dark:text-gray-400 flex items-center gap-2">
-                <span className="hidden sm:inline">{lang === 'ar' ? 'نظام إدارة الأسطول' : 'Fleet Management System'}</span>
+                <span className="hidden sm:inline">{lang === 'ar' ? 'نظام إدارة الأسطول' : 'Fleet Management'}</span>
                 <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded-full text-[10px] font-bold whitespace-nowrap">
                   {profile?.role === 'admin' ? t('roleAdmin', lang) : profile?.role === 'manager' ? t('roleManager', lang) : profile?.role === 'disabled' ? t('roleDisabled', lang) : t('roleUser', lang)}
                 </span>
@@ -744,10 +725,32 @@ export default function App() {
           </div>
         </div>
 
-        {/* شريط التبويبات */}
+        {/* شريط التبويبات (مع التأكد من ظهوره) */}
         <div className="hidden lg:block bg-slate-50 dark:bg-[#0a0b0d]/90 border-t border-slate-200 dark:border-gray-800/80 px-4 sm:px-6">
           <div className="max-w-full flex items-center gap-1 overflow-x-auto py-1.5">
             {navItems.map(item => {
+              // إذا كان المستخدم أدمن، نعرض جميع التبويبات
+              if (profile?.role === 'admin') {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
+                      isActive
+                        ? 'bg-[#cbb26a]/20 text-amber-900 dark:text-[#cbb26a] border-b-2 border-[#cbb26a] shadow-xs'
+                        : item.highlight
+                        ? 'bg-[#cbb26a] text-black font-bold hover:bg-[#b89f57]'
+                        : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-amber-800 dark:text-[#cbb26a]' : item.highlight ? 'text-black' : 'text-slate-500 dark:text-gray-400'}`} />
+                    {item.label}
+                  </button>
+                );
+              }
+              // للمستخدمين الآخرين، نتحقق من الصلاحيات
               if (!hasPermission(item.module, 'view')) return null;
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -774,24 +777,26 @@ export default function App() {
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white dark:bg-[#0f1115] border-b border-slate-200 dark:border-gray-800 px-4 py-3 space-y-1">
             {navItems.map(item => {
-              if (!hasPermission(item.module, 'view')) return null;
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-full text-start px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-3 ${
-                    isActive ? 'bg-[#cbb26a]/20 text-amber-900 dark:text-[#cbb26a] border-s-2 border-[#cbb26a]' : 'text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5'
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 ${isActive ? 'text-amber-800 dark:text-[#cbb26a]' : 'text-slate-500 dark:text-gray-400'}`} />
-                  {item.label}
-                </button>
-              );
+              if (profile?.role === 'admin' || hasPermission(item.module, 'view')) {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setMobileMenuOpen(false);
+                    }}
+                    className={`w-full text-start px-4 py-2.5 rounded-xl text-sm font-bold transition flex items-center gap-3 ${
+                      isActive ? 'bg-[#cbb26a]/20 text-amber-900 dark:text-[#cbb26a] border-s-2 border-[#cbb26a]' : 'text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-white/5'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 ${isActive ? 'text-amber-800 dark:text-[#cbb26a]' : 'text-slate-500 dark:text-gray-400'}`} />
+                    {item.label}
+                  </button>
+                );
+              }
+              return null;
             })}
           </div>
         )}
