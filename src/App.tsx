@@ -67,6 +67,7 @@ export default function App() {
     const saved = localStorage.getItem('fleet_language') as Language;
     return saved || 'en';
   });
+  const isAr = lang === 'ar'; // <-- تم إضافة هذا السطر
 
   // ===== التنقل =====
   const [activeTab, setActiveTab] = useState<string>('dashboard');
