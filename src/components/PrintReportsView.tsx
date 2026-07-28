@@ -595,62 +595,69 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">
-      <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Printer className="w-6 h-6 text-blue-400" />
-            Print Reports & Receipts Generator
-            <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-mono rounded-full font-bold">EN Standard Output</span>
-          </h2>
-          <p className="text-slate-300 text-xs mt-1">Generate and export official handover receipts, fleet summaries, and cost audits.</p>
+      {/* ===== قسم واجهة التحكم (يختفي عند الطباعة) ===== */}
+      <div className="no-print">
+        {/* العنوان والأزرار */}
+        <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Printer className="w-6 h-6 text-blue-400" />
+              Print Reports & Receipts Generator
+              <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-mono rounded-full font-bold">EN Standard Output</span>
+            </h2>
+            <p className="text-slate-300 text-xs mt-1">Generate and export official handover receipts, fleet summaries, and cost audits.</p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button onClick={handleExportCSV} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow transition flex items-center gap-1.5">
+              <Download className="w-4 h-4" /> Export CSV
+            </button>
+            <button onClick={handlePrint} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl text-xs shadow-md transition flex items-center gap-2">
+              <Printer className="w-4 h-4" /> Print / PDF Export
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button onClick={handleExportCSV} className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs shadow transition flex items-center gap-1.5">
-            <Download className="w-4 h-4" /> Export CSV
+        {/* أزرار اختيار نوع التقرير */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 shadow-sm flex flex-wrap gap-2">
+          <button onClick={() => setReportType('ai_cost_summary')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'ai_cost_summary' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm ring-2 ring-emerald-400/30' : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50'}`}>
+            <Sparkles className="w-4 h-4 text-emerald-500" /> AI 3M Cost Report
           </button>
-          <button onClick={handlePrint} className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl text-xs shadow-md transition flex items-center gap-2">
-            <Printer className="w-4 h-4" /> Print / PDF Export
+          <button onClick={() => setReportType('checkout_receipt')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'checkout_receipt' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+            <FileText className="w-4 h-4" /> Checkout Receipt
+          </button>
+          <button onClick={() => setReportType('fleet_summary')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'fleet_summary' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+            <Car className="w-4 h-4" /> Fleet Summary
+          </button>
+          <button onClick={() => setReportType('maintenance_audit')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'maintenance_audit' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+            <Wrench className="w-4 h-4" /> Maintenance Audit
+          </button>
+          <button onClick={() => setReportType('fuel_summary')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'fuel_summary' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+            <Fuel className="w-4 h-4" /> Fuel Report
+          </button>
+          <button onClick={() => setReportType('expiries_audit')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'expiries_audit' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+            <ShieldCheck className="w-4 h-4" /> Expiries Audit
           </button>
         </div>
+
+        {/* قائمة اختيار الجلسة (تظهر فقط لنوع الإيصال) */}
+        {reportType === 'checkout_receipt' && (
+          <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <span className="font-bold text-blue-900 dark:text-blue-200 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-blue-600" /> Select Handover Receipt Session:
+            </span>
+            <select value={selectedSessionId} onChange={e => setSelectedSessionId(e.target.value)} className="px-3 py-2 border rounded-xl bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700 font-bold text-xs w-full sm:w-auto">
+              {checkouts.map(c => {
+                const v = vehicles.find(veh => veh.id === c.vehicleId);
+                const d = drivers.find(drv => drv.id === c.driverId);
+                return <option key={c.id} value={c.id}>Receipt #{c.id} - {v?.make} {v?.plateNumber} ({d?.name})</option>;
+              })}
+            </select>
+          </div>
+        )}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 shadow-sm flex flex-wrap gap-2">
-        <button onClick={() => setReportType('ai_cost_summary')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'ai_cost_summary' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-sm ring-2 ring-emerald-400/30' : 'text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50'}`}>
-          <Sparkles className="w-4 h-4 text-emerald-500" /> AI 3M Cost Report
-        </button>
-        <button onClick={() => setReportType('checkout_receipt')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'checkout_receipt' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-          <FileText className="w-4 h-4" /> Checkout Receipt
-        </button>
-        <button onClick={() => setReportType('fleet_summary')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'fleet_summary' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-          <Car className="w-4 h-4" /> Fleet Summary
-        </button>
-        <button onClick={() => setReportType('maintenance_audit')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'maintenance_audit' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-          <Wrench className="w-4 h-4" /> Maintenance Audit
-        </button>
-        <button onClick={() => setReportType('fuel_summary')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'fuel_summary' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-          <Fuel className="w-4 h-4" /> Fuel Report
-        </button>
-        <button onClick={() => setReportType('expiries_audit')} className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 ${reportType === 'expiries_audit' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
-          <ShieldCheck className="w-4 h-4" /> Expiries Audit
-        </button>
-      </div>
-
-      {reportType === 'checkout_receipt' && (
-        <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-          <span className="font-bold text-blue-900 dark:text-blue-200 flex items-center gap-2">
-            <FileText className="w-4 h-4 text-blue-600" /> Select Handover Receipt Session:
-          </span>
-          <select value={selectedSessionId} onChange={e => setSelectedSessionId(e.target.value)} className="px-3 py-2 border rounded-xl bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700 font-bold text-xs w-full sm:w-auto">
-            {checkouts.map(c => {
-              const v = vehicles.find(veh => veh.id === c.vehicleId);
-              const d = drivers.find(drv => drv.id === c.driverId);
-              return <option key={c.id} value={c.id}>Receipt #{c.id} - {v?.make} {v?.plateNumber} ({d?.name})</option>;
-            })}
-          </select>
-        </div>
-      )}
-
+      {/* ===== محتوى التقرير (يظهر في الطباعة) ===== */}
       <div className="bg-slate-100 dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
         {renderReportContent()}
       </div>
