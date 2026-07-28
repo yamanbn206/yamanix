@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { Language, t } from '../lib/i18n';
-import { History, Search, Filter, Calendar, User, Table, Clock } from 'lucide-react';
+import { History, Search, Filter, Calendar, User, Table, Clock, RefreshCw, Trash2 } from 'lucide-react';
 
 interface AuditLogViewProps {
   lang?: Language;
