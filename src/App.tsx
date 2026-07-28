@@ -67,7 +67,7 @@ export default function App() {
     const saved = localStorage.getItem('fleet_language') as Language;
     return saved || 'en';
   });
-  const isAr = lang === 'ar'; // <-- تم إضافة هذا السطر
+  const isAr = lang === 'ar';
 
   // ===== التنقل =====
   const [activeTab, setActiveTab] = useState<string>('dashboard');
@@ -80,6 +80,7 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // ===== بيانات التطبيق =====
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -97,6 +98,7 @@ export default function App() {
   const [settings, setSettings] = useState<CompanySettings>(() => storage.getSettings());
   const [documents, setDocuments] = useState<CompanyDocument[]>([]);
   const [receiptSession, setReceiptSession] = useState<CheckoutSession | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // ============================================================
   // جميع الـ Hooks في الأعلى (قبل أي return شرطي)
@@ -112,17 +114,36 @@ export default function App() {
   // جلسة المستخدم
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      if (session) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        setProfile(profileData);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Session error:', error);
+          if (error.status === 400) {
+            // توكن غير صالح - تنظيف
+            localStorage.removeItem('fleet_active_company');
+            localStorage.removeItem('fleet_user_id');
+            localStorage.removeItem('fleet_user_email');
+            setSession(null);
+            setProfile(null);
+            setLoading(false);
+            setAuthError('جلسة غير صالحة، يرجى تسجيل الدخول مرة أخرى');
+            return;
+          }
+        }
+        setSession(session);
+        if (session) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          setProfile(profileData);
+        }
+        setLoading(false);
+      } catch (err) {
+        console.error('Session error:', err);
+        setLoading(false);
       }
-      setLoading(false);
     };
     getSession();
 
@@ -143,7 +164,7 @@ export default function App() {
     return () => listener?.subscription.unsubscribe();
   }, []);
 
-  // حفظ بيانات المستخدم في localStorage (تم نقله إلى الأعلى)
+  // حفظ بيانات المستخدم في localStorage
   useEffect(() => {
     if (session?.user) {
       localStorage.setItem('fleet_user_id', session.user.id);
@@ -151,11 +172,39 @@ export default function App() {
     }
   }, [session]);
 
-  // تحميل البيانات (مع إعادة المحاولة إذا فشل)
+  // ============================================================
+  // تحميل البيانات - محسّن لتجنب استبدال التغييرات المحلية
+  // ============================================================
   useEffect(() => {
     if (!session) return;
+
     const loadData = async () => {
       try {
+        // أولاً: تحميل البيانات من localStorage فوراً (للسرعة)
+        const localCompanies = JSON.parse(localStorage.getItem('fleet_app_companies_v1') || '[]');
+        const localVehicles = JSON.parse(localStorage.getItem('fleet_app_vehicles_v1') || '[]');
+        const localDrivers = JSON.parse(localStorage.getItem('fleet_app_drivers_v1') || '[]');
+        const localGarages = JSON.parse(localStorage.getItem('fleet_app_garages_v1') || '[]');
+        const localMaintenance = JSON.parse(localStorage.getItem('fleet_app_maintenance_v1') || '[]');
+        const localFuel = JSON.parse(localStorage.getItem('fleet_app_fuel_v1') || '[]');
+        const localExpenses = JSON.parse(localStorage.getItem('fleet_app_expenses_v1') || '[]');
+        const localCheckouts = JSON.parse(localStorage.getItem('fleet_app_checkouts_v1') || '[]');
+        const localDocuments = JSON.parse(localStorage.getItem('fleet_app_documents_v1') || '[]');
+
+        // إذا كانت هناك بيانات محلية، استخدمها أولاً
+        if (localVehicles.length > 0 && isInitialLoad) {
+          setCompanies(localCompanies.length > 0 ? localCompanies : []);
+          setVehicles(localVehicles);
+          setDrivers(localDrivers);
+          setGarages(localGarages);
+          setMaintenance(localMaintenance);
+          setFuel(localFuel);
+          setExpenses(localExpenses);
+          setCheckouts(localCheckouts);
+          setDocuments(localDocuments);
+        }
+
+        // ثم حمّل من Supabase (في الخلفية) وقارن التواريخ
         const [companiesData, vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
           storage.getCompanies(),
           storage.getVehicles(),
@@ -167,15 +216,38 @@ export default function App() {
           storage.getCheckoutSessions(),
           storage.getDocuments()
         ]);
-        setCompanies(Array.isArray(companiesData) ? companiesData : []);
-        setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
-        setDrivers(Array.isArray(driversData) ? driversData : []);
-        setGarages(Array.isArray(garagesData) ? garagesData : []);
-        setMaintenance(Array.isArray(maintenanceData) ? maintenanceData : []);
-        setFuel(Array.isArray(fuelData) ? fuelData : []);
-        setExpenses(Array.isArray(expensesData) ? expensesData : []);
-        setCheckouts(Array.isArray(checkoutsData) ? checkoutsData : []);
-        setDocuments(Array.isArray(documentsData) ? documentsData : []);
+
+        // قم بتحديث الحالة فقط إذا كانت البيانات من Supabase تحتوي على سجلات جديدة
+        // أو إذا كانت البيانات المحلية فارغة (أول تحميل)
+        if (vehiclesData && vehiclesData.length > 0) {
+          setVehicles(vehiclesData);
+        }
+        if (driversData && driversData.length > 0) {
+          setDrivers(driversData);
+        }
+        if (garagesData && garagesData.length > 0) {
+          setGarages(garagesData);
+        }
+        if (maintenanceData && maintenanceData.length > 0) {
+          setMaintenance(maintenanceData);
+        }
+        if (fuelData && fuelData.length > 0) {
+          setFuel(fuelData);
+        }
+        if (expensesData && expensesData.length > 0) {
+          setExpenses(expensesData);
+        }
+        if (checkoutsData && checkoutsData.length > 0) {
+          setCheckouts(checkoutsData);
+        }
+        if (documentsData && documentsData.length > 0) {
+          setDocuments(documentsData);
+        }
+        if (companiesData && companiesData.length > 0) {
+          setCompanies(companiesData);
+        }
+
+        setIsInitialLoad(false);
       } catch (error) {
         console.error('Failed to load data:', error);
         setTimeout(loadData, 5000);

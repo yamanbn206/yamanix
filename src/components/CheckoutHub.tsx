@@ -53,6 +53,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
   const [activeTab, setActiveTab] = useState<'checkout_form' | 'active_list' | 'history'>('active_list');
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [selectedReturnSession, setSelectedReturnSession] = useState<CheckoutSession | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false); // <-- تمت الإضافة
 
   // New Checkout Form state
   const availableVehicles = vehicles.filter(v => v.status === 'available');
@@ -96,8 +97,12 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
     }
   };
 
-  const handleCreateCheckout = (e: React.FormEvent) => {
+  const handleCreateCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // منع الإرسال المزدوج
+    if (isSubmitting) return;
+    
     if (!formVehicleId || !formDriverId) {
       alert(isAr ? 'يرجى اختيار السيارة والسائق/المستلم' : 'Please select vehicle and driver');
       return;
@@ -107,28 +112,40 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
       return;
     }
 
-    const newSession: CheckoutSession = {
-      id: `chk-${Date.now().toString().slice(-5)}`,
-      vehicleId: formVehicleId,
-      driverId: formDriverId,
-      purpose: formPurpose,
-      purposeCustom: formPurposeCustom || (
-        formPurpose === 'quick_task' ? 'Quick task (1 hour or less)' : 
-        formPurpose === 'official' ? 'Official business' : 'Client delivery'
-      ),
-      checkoutTime: formCheckoutTime,
-      checkoutOdometer: formOdometer,
-      checkoutFuelLevel: formFuelLevel,
-      checkoutSignature: formSignature,
-      checkoutNotes: formNotes,
-      checkoutChecklist: formChecklist,
-      status: 'active'
-    };
+    setIsSubmitting(true);
 
-    onSaveCheckout(newSession);
-    setShowCheckoutModal(false);
-    resetForm();
-    setActiveTab('active_list');
+    try {
+      // إنشاء ID فريد باستخدام الوقت ورقم عشوائي لتجنب التكرار
+      const id = `chk-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
+      
+      const newSession: CheckoutSession = {
+        id: id,
+        vehicleId: formVehicleId,
+        driverId: formDriverId,
+        purpose: formPurpose,
+        purposeCustom: formPurposeCustom || (
+          formPurpose === 'quick_task' ? 'Quick task (1 hour or less)' : 
+          formPurpose === 'official' ? 'Official business' : 'Client delivery'
+        ),
+        checkoutTime: formCheckoutTime,
+        checkoutOdometer: formOdometer,
+        checkoutFuelLevel: formFuelLevel,
+        checkoutSignature: formSignature,
+        checkoutNotes: formNotes,
+        checkoutChecklist: formChecklist,
+        status: 'active'
+      };
+
+      await onSaveCheckout(newSession);
+      setShowCheckoutModal(false);
+      resetForm();
+      setActiveTab('active_list');
+    } catch (error) {
+      console.error('Error creating checkout:', error);
+      alert(isAr ? 'حدث خطأ أثناء إنشاء طلب الاستلام' : 'Error creating checkout session');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleOpenReturn = (session: CheckoutSession) => {
@@ -332,7 +349,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
         </div>
       )}
 
-      {/* COMPLETED HISTORY LIST - مع زر حذف للأدمن */}
+      {/* COMPLETED HISTORY LIST */}
       {activeTab === 'history' && (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
           <div className="overflow-x-auto">
@@ -683,9 +700,12 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm shadow transition"
+                  disabled={isSubmitting}
+                  className={`px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm shadow transition ${
+                    isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
-                  {isAr ? 'اعتماد استلام السيارة والتوقيع' : 'Confirm Checkout & Signature'}
+                  {isSubmitting ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'اعتماد استلام السيارة والتوقيع' : 'Confirm Checkout & Signature')}
                 </button>
               </div>
             </form>

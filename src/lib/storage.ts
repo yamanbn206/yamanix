@@ -132,7 +132,6 @@ export const storage = {
 
   saveVehicles: async (vehicles: Vehicle[]) => {
     if (!Array.isArray(vehicles)) return;
-    // إضافة companyId تلقائياً إذا كان مفقوداً
     const activeCompanyId = storage.getActiveCompanyId();
     const vehiclesWithCompany = vehicles.map(v => ({
       ...v,
@@ -142,13 +141,14 @@ export const storage = {
     try {
       const { error } = await supabase
         .from('vehicles')
-        .upsert(toSnakeCase(vehiclesWithCompany), { onConflict: 'id' });
+        .upsert(toSnakeCase(vehiclesWithCompany), { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
       if (error) {
         console.error('❌ Sync vehicles to Supabase failed:', error);
-        // تسجيل الخطأ في سجل العمليات
         await storage.saveAuditLog('vehicles', 'save_failed', { error: error.message, data: vehiclesWithCompany });
       } else {
-        // تسجيل نجاح العملية في سجل العمليات
         await storage.saveAuditLog('vehicles', 'save', { count: vehiclesWithCompany.length });
       }
     } catch (e) {
@@ -201,7 +201,10 @@ export const storage = {
     try {
       const { error } = await supabase
         .from('drivers')
-        .upsert(toSnakeCase(driversWithCompany), { onConflict: 'id' });
+        .upsert(toSnakeCase(driversWithCompany), { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
       if (error) {
         console.error('❌ Sync drivers to Supabase failed:', error);
         await storage.saveAuditLog('drivers', 'save_failed', { error: error.message });
@@ -258,7 +261,10 @@ export const storage = {
     try {
       const { error } = await supabase
         .from('garages')
-        .upsert(toSnakeCase(garagesWithCompany), { onConflict: 'id' });
+        .upsert(toSnakeCase(garagesWithCompany), { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
       if (error) {
         console.error('❌ Sync garages to Supabase failed:', error);
         await storage.saveAuditLog('garages', 'save_failed', { error: error.message });
@@ -315,7 +321,10 @@ export const storage = {
     try {
       const { error } = await supabase
         .from('maintenance_records')
-        .upsert(toSnakeCase(recordsWithCompany), { onConflict: 'id' });
+        .upsert(toSnakeCase(recordsWithCompany), { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
       if (error) {
         console.error('❌ Sync maintenance records to Supabase failed:', error);
         await storage.saveAuditLog('maintenance_records', 'save_failed', { error: error.message });
@@ -372,7 +381,10 @@ export const storage = {
     try {
       const { error } = await supabase
         .from('fuel_records')
-        .upsert(toSnakeCase(recordsWithCompany), { onConflict: 'id' });
+        .upsert(toSnakeCase(recordsWithCompany), { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
       if (error) {
         console.error('❌ Sync fuel records to Supabase failed:', error);
         await storage.saveAuditLog('fuel_records', 'save_failed', { error: error.message });
@@ -429,7 +441,10 @@ export const storage = {
     try {
       const { error } = await supabase
         .from('expenses')
-        .upsert(toSnakeCase(recordsWithCompany), { onConflict: 'id' });
+        .upsert(toSnakeCase(recordsWithCompany), { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
       if (error) {
         console.error('❌ Sync expenses to Supabase failed:', error);
         await storage.saveAuditLog('expenses', 'save_failed', { error: error.message });
@@ -486,7 +501,10 @@ export const storage = {
     try {
       const { error } = await supabase
         .from('checkout_sessions')
-        .upsert(toSnakeCase(sessionsWithCompany), { onConflict: 'id' });
+        .upsert(toSnakeCase(sessionsWithCompany), { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
       if (error) {
         console.error('❌ Sync checkout sessions to Supabase failed:', error);
         await storage.saveAuditLog('checkout_sessions', 'save_failed', { error: error.message });
@@ -561,7 +579,10 @@ export const storage = {
     try {
       const { error } = await supabase
         .from('documents')
-        .upsert(toSnakeCase(docsWithCompany), { onConflict: 'id' });
+        .upsert(toSnakeCase(docsWithCompany), { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
       if (error) {
         console.error('❌ Sync documents to Supabase failed:', error);
         await storage.saveAuditLog('documents', 'save_failed', { error: error.message });
@@ -591,7 +612,6 @@ export const storage = {
   // ============================================================
   saveAuditLog: async (table: string, action: string, data: any) => {
     try {
-      // الحصول على المستخدم الحالي من localStorage (سيتم تمريره من App.tsx)
       const userId = localStorage.getItem('fleet_user_id') || 'system';
       const userEmail = localStorage.getItem('fleet_user_email') || 'system@yamanix.com';
       
@@ -604,17 +624,15 @@ export const storage = {
         created_at: new Date().toISOString()
       };
       
-      // حفظ في Supabase (جدول audit_log)
       const { error } = await supabase
         .from('audit_log')
         .insert([logEntry]);
       
       if (error) {
         console.error('❌ Failed to save audit log:', error);
-        // حفظ محلياً في localStorage كنسخة احتياطية
         const localLogs = JSON.parse(localStorage.getItem('fleet_audit_logs') || '[]');
         localLogs.push(logEntry);
-        localStorage.setItem('fleet_audit_logs', JSON.stringify(localLogs.slice(-1000))); // آخر 1000 سجل
+        localStorage.setItem('fleet_audit_logs', JSON.stringify(localLogs.slice(-1000)));
       }
     } catch (e) {
       console.error('❌ Audit log error:', e);
@@ -635,7 +653,6 @@ export const storage = {
     } catch (e) {
       console.warn('Failed to fetch audit logs from Supabase:', e);
     }
-    // العودة إلى النسخة المحلية إذا فشل Supabase
     return JSON.parse(localStorage.getItem('fleet_audit_logs') || '[]');
   },
 

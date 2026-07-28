@@ -48,7 +48,14 @@ export const ExpiriesView: React.FC<ExpiriesViewProps> = ({ vehicles, drivers, o
   const getMileageStatus = (v: Vehicle) => {
     const current = v.mileage || 0;
     const interval = v.serviceIntervalKm || 5000;
-    const target = v.nextServiceMileage || (current + interval);
+    // 🔧 التأكد من أن هدف الصيانة أكبر من العداد الحالي
+    let target = v.nextServiceMileage || (current + interval);
+    
+    // إذا كان الهدف أصغر من العداد الحالي، أعد حسابه
+    if (target <= current) {
+      target = current + interval;
+    }
+    
     const remaining = target - current;
 
     return {
@@ -99,10 +106,20 @@ export const ExpiriesView: React.FC<ExpiriesViewProps> = ({ vehicles, drivers, o
     e.preventDefault();
     if (!editingVehicle || !onSaveVehicle) return;
 
+    // 🔧 التأكد من أن الهدف أكبر من العداد الحالي
+    let target = targetMileageInput;
+    if (target <= currentMileageInput) {
+      target = currentMileageInput + intervalInput;
+      alert(isAr 
+        ? 'تم تعديل الهدف ليكون أكبر من العداد الحالي'
+        : 'Target adjusted to be greater than current odometer'
+      );
+    }
+
     const updatedVehicle: Vehicle = {
       ...editingVehicle,
       mileage: currentMileageInput,
-      nextServiceMileage: targetMileageInput,
+      nextServiceMileage: target,
       serviceIntervalKm: intervalInput
     };
 
@@ -119,7 +136,8 @@ export const ExpiriesView: React.FC<ExpiriesViewProps> = ({ vehicles, drivers, o
     if (!onSaveVehicle) return;
     const interval = v.serviceIntervalKm || 5000;
     const current = v.mileage || 0;
-    const newTarget = current + interval;
+    // 🔧 التأكد من أن الهدف الجديد أكبر من العداد الحالي
+    const newTarget = Math.max(current + interval, current + 100);
 
     const updatedVehicle: Vehicle = {
       ...v,
@@ -475,7 +493,18 @@ export const ExpiriesView: React.FC<ExpiriesViewProps> = ({ vehicles, drivers, o
               <div>
                 <label className="block text-xs font-semibold text-gray-300 mb-1">{isAr ? 'حد العداد المستهدف للصيانة القادمة (كم)' : 'Target Service Mileage (km)'}</label>
                 <input type="number" required value={targetMileageInput} onChange={e => setTargetMileageInput(Number(e.target.value))} className="w-full px-3 py-2.5 bg-[#0a0b0d] border border-gray-800 rounded-xl text-sm text-white focus:outline-none focus:border-[#cbb26a]" />
-                <span className="text-[11px] text-gray-400 mt-1 block">{isAr ? `سيتم التنبيه فور وصول أو تجاوز العداد لـ ${targetMileageInput.toLocaleString()} كم.` : `Alert will trigger when odometer reaches ${targetMileageInput.toLocaleString()} km.`}</span>
+                <span className="text-[11px] text-gray-400 mt-1 block">
+                  {isAr 
+                    ? `سيتم التنبيه فور وصول أو تجاوز العداد لـ ${targetMileageInput.toLocaleString()} كم.`
+                    : `Alert will trigger when odometer reaches ${targetMileageInput.toLocaleString()} km.`}
+                </span>
+                {targetMileageInput <= currentMileageInput && (
+                  <span className="text-[11px] text-rose-400 mt-1 block">
+                    {isAr 
+                      ? '⚠️ يجب أن يكون الحد المستهدف أكبر من العداد الحالي'
+                      : '⚠️ Target must be greater than current odometer'}
+                  </span>
+                )}
               </div>
 
               <div>
@@ -491,7 +520,15 @@ export const ExpiriesView: React.FC<ExpiriesViewProps> = ({ vehicles, drivers, o
 
               <div className="flex justify-end gap-3 pt-4 border-t border-gray-800">
                 <button type="button" onClick={() => setEditingVehicle(null)} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-xs font-bold rounded-xl transition">{isAr ? 'إلغاء' : t('cancel', lang)}</button>
-                <button type="submit" className="px-5 py-2 bg-[#cbb26a] hover:bg-[#b89f57] text-black text-xs font-extrabold rounded-xl transition shadow-md">{isAr ? 'حفظ الضبط والتحديث' : 'Save & Update'}</button>
+                <button 
+                  type="submit" 
+                  disabled={targetMileageInput <= currentMileageInput}
+                  className={`px-5 py-2 bg-[#cbb26a] hover:bg-[#b89f57] text-black text-xs font-extrabold rounded-xl transition shadow-md ${
+                    targetMileageInput <= currentMileageInput ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {isAr ? 'حفظ الضبط والتحديث' : 'Save & Update'}
+                </button>
               </div>
             </form>
           </div>
