@@ -1,4 +1,3 @@
-// أضف هذا الملف كاملاً كما هو، لأنه تم التأكد من صحة جميع الدوال
 import { 
   Company,
   Vehicle, 
@@ -25,6 +24,9 @@ import {
 } from '../data/mockData';
 import { supabase } from './supabase';
 
+// ============================================================
+// مفاتيح التخزين المحلي
+// ============================================================
 const KEYS = {
   COMPANIES: 'fleet_app_companies_v1',
   ACTIVE_COMPANY_ID: 'fleet_app_active_company_id_v1',
@@ -41,6 +43,9 @@ const KEYS = {
   LAST_SYNC_TIME: 'fleet_app_last_sync_time_v1',
 };
 
+// ============================================================
+// دوال مساعدة
+// ============================================================
 function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
@@ -63,7 +68,15 @@ function toCamelCase(obj: any): any {
   return result;
 }
 
+// ============================================================
+// دوال التخزين
+// ============================================================
 export const storage = {
+
+  // ===== ACTIVE COMPANY ID =====
+  getActiveCompanyId: (): string => localStorage.getItem(KEYS.ACTIVE_COMPANY_ID) || 'comp-1',
+  setActiveCompanyId: (id: string) => localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, id),
+
   // ===== COMPANIES =====
   getCompanies: async (): Promise<Company[]> => {
     try {
@@ -96,11 +109,9 @@ export const storage = {
     }
   },
 
-  // ===== ACTIVE COMPANY ID =====
-  getActiveCompanyId: (): string => localStorage.getItem(KEYS.ACTIVE_COMPANY_ID) || 'all',
-  setActiveCompanyId: (id: string) => localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, id),
-
-  // ===== VEHICLES =====
+  // ============================================================
+  // VEHICLES (مع إضافة companyId تلقائياً)
+  // ============================================================
   getVehicles: async (): Promise<Vehicle[]> => {
     try {
       const { data, error } = await supabase
@@ -121,12 +132,25 @@ export const storage = {
 
   saveVehicles: async (vehicles: Vehicle[]) => {
     if (!Array.isArray(vehicles)) return;
-    localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles));
+    // إضافة companyId تلقائياً إذا كان مفقوداً
+    const activeCompanyId = storage.getActiveCompanyId();
+    const vehiclesWithCompany = vehicles.map(v => ({
+      ...v,
+      companyId: v.companyId || activeCompanyId
+    }));
+    localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehiclesWithCompany));
     try {
       const { error } = await supabase
         .from('vehicles')
-        .upsert(toSnakeCase(vehicles), { onConflict: 'id' });
-      if (error) console.error('❌ Sync vehicles to Supabase failed:', error);
+        .upsert(toSnakeCase(vehiclesWithCompany), { onConflict: 'id' });
+      if (error) {
+        console.error('❌ Sync vehicles to Supabase failed:', error);
+        // تسجيل الخطأ في سجل العمليات
+        await storage.saveAuditLog('vehicles', 'save_failed', { error: error.message, data: vehiclesWithCompany });
+      } else {
+        // تسجيل نجاح العملية في سجل العمليات
+        await storage.saveAuditLog('vehicles', 'save', { count: vehiclesWithCompany.length });
+      }
     } catch (e) {
       console.error('❌ Sync vehicles error:', e);
     }
@@ -138,13 +162,16 @@ export const storage = {
       if (error) throw error;
       const vehicles = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || '[]');
       localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles.filter((v: any) => v.id !== id)));
+      await storage.saveAuditLog('vehicles', 'delete', { id });
     } catch (e) {
       console.error('Delete vehicle error:', e);
       throw e;
     }
   },
 
-  // ===== DRIVERS =====
+  // ============================================================
+  // DRIVERS (مع إضافة companyId تلقائياً)
+  // ============================================================
   getDrivers: async (): Promise<Driver[]> => {
     try {
       const { data, error } = await supabase
@@ -165,12 +192,22 @@ export const storage = {
 
   saveDrivers: async (drivers: Driver[]) => {
     if (!Array.isArray(drivers)) return;
-    localStorage.setItem(KEYS.DRIVERS, JSON.stringify(drivers));
+    const activeCompanyId = storage.getActiveCompanyId();
+    const driversWithCompany = drivers.map(d => ({
+      ...d,
+      companyId: d.companyId || activeCompanyId
+    }));
+    localStorage.setItem(KEYS.DRIVERS, JSON.stringify(driversWithCompany));
     try {
       const { error } = await supabase
         .from('drivers')
-        .upsert(toSnakeCase(drivers), { onConflict: 'id' });
-      if (error) console.error('❌ Sync drivers to Supabase failed:', error);
+        .upsert(toSnakeCase(driversWithCompany), { onConflict: 'id' });
+      if (error) {
+        console.error('❌ Sync drivers to Supabase failed:', error);
+        await storage.saveAuditLog('drivers', 'save_failed', { error: error.message });
+      } else {
+        await storage.saveAuditLog('drivers', 'save', { count: driversWithCompany.length });
+      }
     } catch (e) {
       console.error('❌ Sync drivers error:', e);
     }
@@ -182,13 +219,16 @@ export const storage = {
       if (error) throw error;
       const drivers = JSON.parse(localStorage.getItem(KEYS.DRIVERS) || '[]');
       localStorage.setItem(KEYS.DRIVERS, JSON.stringify(drivers.filter((d: any) => d.id !== id)));
+      await storage.saveAuditLog('drivers', 'delete', { id });
     } catch (e) {
       console.error('Delete driver error:', e);
       throw e;
     }
   },
 
-  // ===== GARAGES =====
+  // ============================================================
+  // GARAGES (مع إضافة companyId تلقائياً)
+  // ============================================================
   getGarages: async (): Promise<Garage[]> => {
     try {
       const { data, error } = await supabase
@@ -209,12 +249,22 @@ export const storage = {
 
   saveGarages: async (garages: Garage[]) => {
     if (!Array.isArray(garages)) return;
-    localStorage.setItem(KEYS.GARAGES, JSON.stringify(garages));
+    const activeCompanyId = storage.getActiveCompanyId();
+    const garagesWithCompany = garages.map(g => ({
+      ...g,
+      companyId: g.companyId || activeCompanyId
+    }));
+    localStorage.setItem(KEYS.GARAGES, JSON.stringify(garagesWithCompany));
     try {
       const { error } = await supabase
         .from('garages')
-        .upsert(toSnakeCase(garages), { onConflict: 'id' });
-      if (error) console.error('❌ Sync garages to Supabase failed:', error);
+        .upsert(toSnakeCase(garagesWithCompany), { onConflict: 'id' });
+      if (error) {
+        console.error('❌ Sync garages to Supabase failed:', error);
+        await storage.saveAuditLog('garages', 'save_failed', { error: error.message });
+      } else {
+        await storage.saveAuditLog('garages', 'save', { count: garagesWithCompany.length });
+      }
     } catch (e) {
       console.error('❌ Sync garages error:', e);
     }
@@ -226,13 +276,16 @@ export const storage = {
       if (error) throw error;
       const garages = JSON.parse(localStorage.getItem(KEYS.GARAGES) || '[]');
       localStorage.setItem(KEYS.GARAGES, JSON.stringify(garages.filter((g: any) => g.id !== id)));
+      await storage.saveAuditLog('garages', 'delete', { id });
     } catch (e) {
       console.error('Delete garage error:', e);
       throw e;
     }
   },
 
-  // ===== MAINTENANCE RECORDS =====
+  // ============================================================
+  // MAINTENANCE RECORDS (مع إضافة companyId تلقائياً)
+  // ============================================================
   getMaintenanceRecords: async (): Promise<MaintenanceRecord[]> => {
     try {
       const { data, error } = await supabase
@@ -253,12 +306,22 @@ export const storage = {
 
   saveMaintenanceRecords: async (records: MaintenanceRecord[]) => {
     if (!Array.isArray(records)) return;
-    localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(records));
+    const activeCompanyId = storage.getActiveCompanyId();
+    const recordsWithCompany = records.map(r => ({
+      ...r,
+      companyId: r.companyId || activeCompanyId
+    }));
+    localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(recordsWithCompany));
     try {
       const { error } = await supabase
         .from('maintenance_records')
-        .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) console.error('❌ Sync maintenance records to Supabase failed:', error);
+        .upsert(toSnakeCase(recordsWithCompany), { onConflict: 'id' });
+      if (error) {
+        console.error('❌ Sync maintenance records to Supabase failed:', error);
+        await storage.saveAuditLog('maintenance_records', 'save_failed', { error: error.message });
+      } else {
+        await storage.saveAuditLog('maintenance_records', 'save', { count: recordsWithCompany.length });
+      }
     } catch (e) {
       console.error('❌ Sync maintenance records error:', e);
     }
@@ -270,13 +333,16 @@ export const storage = {
       if (error) throw error;
       const records = JSON.parse(localStorage.getItem(KEYS.MAINTENANCE) || '[]');
       localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(records.filter((m: any) => m.id !== id)));
+      await storage.saveAuditLog('maintenance_records', 'delete', { id });
     } catch (e) {
       console.error('Delete maintenance record error:', e);
       throw e;
     }
   },
 
-  // ===== FUEL RECORDS =====
+  // ============================================================
+  // FUEL RECORDS (مع إضافة companyId تلقائياً)
+  // ============================================================
   getFuelRecords: async (): Promise<FuelRecord[]> => {
     try {
       const { data, error } = await supabase
@@ -297,12 +363,22 @@ export const storage = {
 
   saveFuelRecords: async (records: FuelRecord[]) => {
     if (!Array.isArray(records)) return;
-    localStorage.setItem(KEYS.FUEL, JSON.stringify(records));
+    const activeCompanyId = storage.getActiveCompanyId();
+    const recordsWithCompany = records.map(r => ({
+      ...r,
+      companyId: r.companyId || activeCompanyId
+    }));
+    localStorage.setItem(KEYS.FUEL, JSON.stringify(recordsWithCompany));
     try {
       const { error } = await supabase
         .from('fuel_records')
-        .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) console.error('❌ Sync fuel records to Supabase failed:', error);
+        .upsert(toSnakeCase(recordsWithCompany), { onConflict: 'id' });
+      if (error) {
+        console.error('❌ Sync fuel records to Supabase failed:', error);
+        await storage.saveAuditLog('fuel_records', 'save_failed', { error: error.message });
+      } else {
+        await storage.saveAuditLog('fuel_records', 'save', { count: recordsWithCompany.length });
+      }
     } catch (e) {
       console.error('❌ Sync fuel records error:', e);
     }
@@ -314,13 +390,16 @@ export const storage = {
       if (error) throw error;
       const records = JSON.parse(localStorage.getItem(KEYS.FUEL) || '[]');
       localStorage.setItem(KEYS.FUEL, JSON.stringify(records.filter((f: any) => f.id !== id)));
+      await storage.saveAuditLog('fuel_records', 'delete', { id });
     } catch (e) {
       console.error('Delete fuel record error:', e);
       throw e;
     }
   },
 
-  // ===== EXPENSE RECORDS =====
+  // ============================================================
+  // EXPENSE RECORDS (مع إضافة companyId تلقائياً)
+  // ============================================================
   getExpenseRecords: async (): Promise<ExpenseRecord[]> => {
     try {
       const { data, error } = await supabase
@@ -341,12 +420,22 @@ export const storage = {
 
   saveExpenseRecords: async (records: ExpenseRecord[]) => {
     if (!Array.isArray(records)) return;
-    localStorage.setItem(KEYS.EXPENSES, JSON.stringify(records));
+    const activeCompanyId = storage.getActiveCompanyId();
+    const recordsWithCompany = records.map(r => ({
+      ...r,
+      companyId: r.companyId || activeCompanyId
+    }));
+    localStorage.setItem(KEYS.EXPENSES, JSON.stringify(recordsWithCompany));
     try {
       const { error } = await supabase
         .from('expenses')
-        .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) console.error('❌ Sync expenses to Supabase failed:', error);
+        .upsert(toSnakeCase(recordsWithCompany), { onConflict: 'id' });
+      if (error) {
+        console.error('❌ Sync expenses to Supabase failed:', error);
+        await storage.saveAuditLog('expenses', 'save_failed', { error: error.message });
+      } else {
+        await storage.saveAuditLog('expenses', 'save', { count: recordsWithCompany.length });
+      }
     } catch (e) {
       console.error('❌ Sync expenses error:', e);
     }
@@ -358,13 +447,16 @@ export const storage = {
       if (error) throw error;
       const records = JSON.parse(localStorage.getItem(KEYS.EXPENSES) || '[]');
       localStorage.setItem(KEYS.EXPENSES, JSON.stringify(records.filter((e: any) => e.id !== id)));
+      await storage.saveAuditLog('expenses', 'delete', { id });
     } catch (e) {
       console.error('Delete expense record error:', e);
       throw e;
     }
   },
 
-  // ===== CHECKOUT SESSIONS =====
+  // ============================================================
+  // CHECKOUT SESSIONS (مع إضافة companyId تلقائياً)
+  // ============================================================
   getCheckoutSessions: async (): Promise<CheckoutSession[]> => {
     try {
       const { data, error } = await supabase
@@ -385,12 +477,22 @@ export const storage = {
 
   saveCheckoutSessions: async (sessions: CheckoutSession[]) => {
     if (!Array.isArray(sessions)) return;
-    localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessions));
+    const activeCompanyId = storage.getActiveCompanyId();
+    const sessionsWithCompany = sessions.map(s => ({
+      ...s,
+      companyId: s.companyId || activeCompanyId
+    }));
+    localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessionsWithCompany));
     try {
       const { error } = await supabase
         .from('checkout_sessions')
-        .upsert(toSnakeCase(sessions), { onConflict: 'id' });
-      if (error) console.error('❌ Sync checkout sessions to Supabase failed:', error);
+        .upsert(toSnakeCase(sessionsWithCompany), { onConflict: 'id' });
+      if (error) {
+        console.error('❌ Sync checkout sessions to Supabase failed:', error);
+        await storage.saveAuditLog('checkout_sessions', 'save_failed', { error: error.message });
+      } else {
+        await storage.saveAuditLog('checkout_sessions', 'save', { count: sessionsWithCompany.length });
+      }
     } catch (e) {
       console.error('❌ Sync checkout sessions error:', e);
     }
@@ -402,13 +504,16 @@ export const storage = {
       if (error) throw error;
       const sessions = JSON.parse(localStorage.getItem(KEYS.CHECKOUTS) || '[]');
       localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessions.filter((s: any) => s.id !== id)));
+      await storage.saveAuditLog('checkout_sessions', 'delete', { id });
     } catch (e) {
       console.error('Delete checkout session error:', e);
       throw e;
     }
   },
 
-  // ===== SETTINGS =====
+  // ============================================================
+  // SETTINGS
+  // ============================================================
   getSettings: (): CompanySettings => {
     const local = localStorage.getItem(KEYS.SETTINGS);
     if (local) {
@@ -424,7 +529,9 @@ export const storage = {
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
   },
 
-  // ===== DOCUMENTS =====
+  // ============================================================
+  // DOCUMENTS (مع إضافة companyId تلقائياً)
+  // ============================================================
   getDocuments: async (): Promise<CompanyDocument[]> => {
     try {
       const { data, error } = await supabase
@@ -445,12 +552,22 @@ export const storage = {
 
   saveDocuments: async (docs: CompanyDocument[]) => {
     if (!Array.isArray(docs)) return;
-    localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docs));
+    const activeCompanyId = storage.getActiveCompanyId();
+    const docsWithCompany = docs.map(d => ({
+      ...d,
+      companyId: d.companyId || activeCompanyId
+    }));
+    localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docsWithCompany));
     try {
       const { error } = await supabase
         .from('documents')
-        .upsert(toSnakeCase(docs), { onConflict: 'id' });
-      if (error) console.error('❌ Sync documents to Supabase failed:', error);
+        .upsert(toSnakeCase(docsWithCompany), { onConflict: 'id' });
+      if (error) {
+        console.error('❌ Sync documents to Supabase failed:', error);
+        await storage.saveAuditLog('documents', 'save_failed', { error: error.message });
+      } else {
+        await storage.saveAuditLog('documents', 'save', { count: docsWithCompany.length });
+      }
     } catch (e) {
       console.error('❌ Sync documents error:', e);
     }
@@ -462,13 +579,69 @@ export const storage = {
       if (error) throw error;
       const docs = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || '[]');
       localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docs.filter((d: any) => d.id !== id)));
+      await storage.saveAuditLog('documents', 'delete', { id });
     } catch (e) {
       console.error('Delete document error:', e);
       throw e;
     }
   },
 
-  // ===== PENDING SYNC =====
+  // ============================================================
+  // AUDIT LOG (سجل العمليات)
+  // ============================================================
+  saveAuditLog: async (table: string, action: string, data: any) => {
+    try {
+      // الحصول على المستخدم الحالي من localStorage (سيتم تمريره من App.tsx)
+      const userId = localStorage.getItem('fleet_user_id') || 'system';
+      const userEmail = localStorage.getItem('fleet_user_email') || 'system@yamanix.com';
+      
+      const logEntry = {
+        user_id: userId,
+        user_email: userEmail,
+        table_name: table,
+        action: action,
+        data: data,
+        created_at: new Date().toISOString()
+      };
+      
+      // حفظ في Supabase (جدول audit_log)
+      const { error } = await supabase
+        .from('audit_log')
+        .insert([logEntry]);
+      
+      if (error) {
+        console.error('❌ Failed to save audit log:', error);
+        // حفظ محلياً في localStorage كنسخة احتياطية
+        const localLogs = JSON.parse(localStorage.getItem('fleet_audit_logs') || '[]');
+        localLogs.push(logEntry);
+        localStorage.setItem('fleet_audit_logs', JSON.stringify(localLogs.slice(-1000))); // آخر 1000 سجل
+      }
+    } catch (e) {
+      console.error('❌ Audit log error:', e);
+    }
+  },
+
+  getAuditLogs: async (): Promise<any[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('audit_log')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      
+      if (!error && data) {
+        return data;
+      }
+    } catch (e) {
+      console.warn('Failed to fetch audit logs from Supabase:', e);
+    }
+    // العودة إلى النسخة المحلية إذا فشل Supabase
+    return JSON.parse(localStorage.getItem('fleet_audit_logs') || '[]');
+  },
+
+  // ============================================================
+  // دوال المزامنة
+  // ============================================================
   getPendingSyncCount: (): number => parseInt(localStorage.getItem(KEYS.PENDING_SYNC) || '0'),
   getLastSyncTime: (): string | null => localStorage.getItem(KEYS.LAST_SYNC_TIME),
   clearPendingSync: (): void => {
@@ -477,7 +650,6 @@ export const storage = {
   },
   resetToDefaults: () => {
     localStorage.clear();
-    // إعادة تعبئة البيانات الافتراضية
     localStorage.setItem(KEYS.COMPANIES, JSON.stringify(initialCompanies));
     localStorage.setItem(KEYS.VEHICLES, JSON.stringify(initialVehicles));
     localStorage.setItem(KEYS.DRIVERS, JSON.stringify(initialDrivers));
@@ -488,7 +660,7 @@ export const storage = {
     localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(initialCheckoutSessions));
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(initialCompanySettings));
     localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(initialCompanyDocuments));
-    localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, 'all');
+    localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, 'comp-1');
     window.location.reload();
   }
 };

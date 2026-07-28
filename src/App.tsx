@@ -32,6 +32,7 @@ import { ToastNotifications, ToastRefHandler } from './components/ToastNotificat
 import { OfflineSyncBadge } from './components/OfflineSyncBadge';
 import { LoginScreen } from './components/LoginScreen';
 import { UserManagement } from './components/UserManagement';
+import { AuditLogView } from './components/AuditLogView';
 
 import { 
   Car, 
@@ -54,10 +55,10 @@ import {
   Languages,
   UserCog,
   Shield,
-  LogOut
+  LogOut,
+  History
 } from 'lucide-react';
 
-// الشعار الافتراضي للنظام (يُستخدم للشركات التي لم ترفع لوجو)
 const DEFAULT_LOGO_URL = '/yamanix-logo.png';
 
 export default function App() {
@@ -159,7 +160,6 @@ export default function App() {
           storage.getCheckoutSessions(),
           storage.getDocuments()
         ]);
-        // التأكد من أن البيانات مصفوفة
         setCompanies(Array.isArray(companiesData) ? companiesData : []);
         setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
         setDrivers(Array.isArray(driversData) ? driversData : []);
@@ -171,7 +171,6 @@ export default function App() {
         setDocuments(Array.isArray(documentsData) ? documentsData : []);
       } catch (error) {
         console.error('Failed to load data:', error);
-        // إعادة المحاولة بعد 5 ثوانٍ في حال فشل الاتصال
         setTimeout(loadData, 5000);
       }
     };
@@ -195,11 +194,9 @@ export default function App() {
 
   const handleDeleteCompany = async (compDeleteId: string) => {
     if (!confirm(lang === 'ar' ? 'هل أنت متأكد من حذف هذه الشركة وجميع بياناتها؟' : 'Are you sure you want to delete this company and all its data?')) return;
-    
     const updated = companies.filter(c => c.id !== compDeleteId);
     setCompanies(updated);
     await storage.saveCompanies(updated);
-    
     if (activeCompanyId === compDeleteId) {
       const nextId = updated.length > 0 ? updated[0].id : 'all';
       handleSelectCompany(nextId);
@@ -207,14 +204,14 @@ export default function App() {
   };
 
   // ============================================================
-  // إعدادات الشركة الحالية (مع استخدام اللوجو الافتراضي)
+  // إعدادات الشركة الحالية
   // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
     if (activeCompanyId === 'all') {
       return {
         companyName: lang === 'ar' ? 'مجموعة الشركات المجمّعة' : 'Combined Corporate Group',
         tagline: lang === 'ar' ? 'عرض شامِل ومجمّع لكافة الشركات والبيانات' : 'Combined overview across all registered companies',
-        logoUrl: DEFAULT_LOGO_URL,  // <-- استخدام شعار النظام الافتراضي
+        logoUrl: DEFAULT_LOGO_URL,
         phone: '+966 50 123 4567',
         email: 'fleet@yamanix.com',
         address: lang === 'ar' ? 'المملكة العربية السعودية' : 'Saudi Arabia',
@@ -230,7 +227,7 @@ export default function App() {
         companyId: comp.id,
         companyName: comp.name,
         tagline: comp.tagline || settings.tagline,
-        logoUrl: comp.logoUrl || DEFAULT_LOGO_URL,  // <-- استخدام الافتراضي إذا لم يوجد لوجو
+        logoUrl: comp.logoUrl || DEFAULT_LOGO_URL,
         phone: comp.phone || settings.phone,
         email: comp.email || settings.email,
         address: comp.address || settings.address,
@@ -244,7 +241,7 @@ export default function App() {
   }, [activeCompanyId, companies, settings, lang]);
 
   // ============================================================
-  // تصفية البيانات حسب الشركة النشطة
+  // تصفية البيانات
   // ============================================================
   const filteredVehicles = useMemo(() => {
     if (!Array.isArray(vehicles)) return [];
@@ -328,13 +325,12 @@ export default function App() {
   }, [filteredVehicles, filteredDrivers]);
 
   // ============================================================
-  // دوال الحفظ والحذف (مع الصلاحيات)
+  // دوال الحفظ والحذف
   // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
-  // التحقق من الصلاحيات (إذا لم يكن هناك profile، نعتبر أن المستخدم أدمن)
   const hasPermission = (module: string, action: string = 'view') => {
-    if (!profile) return true; // أثناء التحميل أو إذا فشل جلب الملف الشخصي، نمنح صلاحية مؤقتة
+    if (!profile) return true;
     if (profile?.role === 'admin') return true;
     return profile?.permissions?.[module]?.[action] === true;
   };
@@ -597,10 +593,12 @@ export default function App() {
     setSession(null);
     setProfile(null);
     localStorage.removeItem('fleet_active_company');
+    localStorage.removeItem('fleet_user_id');
+    localStorage.removeItem('fleet_user_email');
   };
 
   // ============================================================
-  // قائمة التبويبات (مع الصلاحيات)
+  // قائمة التبويبات
   // ============================================================
   const navItems = [
     { id: 'dashboard', label: t('dashboard', lang), icon: LayoutDashboard, module: 'vehicles' },
@@ -614,6 +612,7 @@ export default function App() {
     { id: 'advisor', label: t('aiAdvisor', lang), icon: Sparkles, module: 'vehicles' },
     { id: 'settings', label: t('companySettings', lang), icon: Building2, module: 'settings' },
     { id: 'users', label: t('userManagement', lang), icon: UserCog, module: 'users' },
+    { id: 'audit', label: isAr ? 'سجل العمليات' : 'Audit Log', icon: History, module: 'users' },
   ];
 
   // ============================================================
@@ -636,15 +635,20 @@ export default function App() {
     );
   }
 
+  // حفظ بيانات المستخدم في localStorage لاستخدامها في سجل العمليات
+  useEffect(() => {
+    if (session?.user) {
+      localStorage.setItem('fleet_user_id', session.user.id);
+      localStorage.setItem('fleet_user_email', session.user.email || '');
+    }
+  }, [session]);
+
   // ============================================================
-  // التحقق من الصلاحية للتبويب النشط
+  // التصيير الرئيسي
   // ============================================================
   const currentNavItem = navItems.find(item => item.id === activeTab);
   const isAllowed = currentNavItem ? hasPermission(currentNavItem.module, 'view') : false;
 
-  // ============================================================
-  // التصيير الرئيسي (مع المحافظة على الهيكل الأصلي)
-  // ============================================================
   return (
     <div className={`min-h-screen bg-slate-100 dark:bg-[#0a0b0d] text-slate-800 dark:text-gray-200 font-sans transition-colors duration-200 ${lang === 'ar' ? 'dir-rtl' : 'dir-ltr'}`}>
       <header className="no-print bg-white dark:bg-[#0f1115] text-slate-800 dark:text-white border-b border-slate-200 dark:border-gray-800 sticky top-0 z-40 shadow-xs dark:shadow-md">
@@ -725,12 +729,11 @@ export default function App() {
           </div>
         </div>
 
-        {/* شريط التبويبات (مع التأكد من ظهوره) */}
+        {/* شريط التبويبات */}
         <div className="hidden lg:block bg-slate-50 dark:bg-[#0a0b0d]/90 border-t border-slate-200 dark:border-gray-800/80 px-4 sm:px-6">
           <div className="max-w-full flex items-center gap-1 overflow-x-auto py-1.5">
             {navItems.map(item => {
-              // إذا كان المستخدم أدمن، نعرض جميع التبويبات
-              if (profile?.role === 'admin') {
+              if (profile?.role === 'admin' || hasPermission(item.module, 'view')) {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
                 return (
@@ -750,26 +753,7 @@ export default function App() {
                   </button>
                 );
               }
-              // للمستخدمين الآخرين، نتحقق من الصلاحيات
-              if (!hasPermission(item.module, 'view')) return null;
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`px-3.5 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 whitespace-nowrap ${
-                    isActive
-                      ? 'bg-[#cbb26a]/20 text-amber-900 dark:text-[#cbb26a] border-b-2 border-[#cbb26a] shadow-xs'
-                      : item.highlight
-                      ? 'bg-[#cbb26a] text-black font-bold hover:bg-[#b89f57]'
-                      : 'text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/60 dark:hover:bg-white/5'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-amber-800 dark:text-[#cbb26a]' : item.highlight ? 'text-black' : 'text-slate-500 dark:text-gray-400'}`} />
-                  {item.label}
-                </button>
-              );
+              return null;
             })}
           </div>
         </div>
@@ -814,7 +798,7 @@ export default function App() {
             {activeTab === 'dashboard' && <DashboardView vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} settings={currentCompanySettings} onNavigateTab={setActiveTab} lang={lang} />}
             {activeTab === 'vehicles' && <VehiclesView vehicles={filteredVehicles} drivers={filteredDrivers} onSaveVehicle={handleSaveVehicle} onDeleteVehicle={handleDeleteVehicle} lang={lang} />}
             {activeTab === 'drivers' && <DriversView drivers={filteredDrivers} vehicles={filteredVehicles} onSaveDriver={handleSaveDriver} onDeleteDriver={handleDeleteDriver} lang={lang} />}
-            {activeTab === 'checkout' && <CheckoutHub vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} settings={currentCompanySettings} onSaveCheckout={handleSaveCheckout} onReturnVehicle={handleReturnVehicle} onDeleteCheckout={handleDeleteCheckout} onPrintReceipt={handlePrintReceipt} lang={lang} />}
+            {activeTab === 'checkout' && <CheckoutHub vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} settings={currentCompanySettings} profile={profile} onSaveCheckout={handleSaveCheckout} onReturnVehicle={handleReturnVehicle} onDeleteCheckout={handleDeleteCheckout} onPrintReceipt={handlePrintReceipt} lang={lang} />}
             {activeTab === 'maintenance' && <MaintenanceView maintenance={filteredMaintenance} vehicles={filteredVehicles} garages={filteredGarages} settings={currentCompanySettings} onSaveMaintenance={handleSaveMaintenance} onDeleteMaintenance={handleDeleteMaintenance} onSaveGarage={handleSaveGarage} onDeleteGarage={handleDeleteGarage} lang={lang} />}
             {activeTab === 'fuel' && <FuelExpensesView fuel={filteredFuel} expenses={filteredExpenses} vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} garages={filteredGarages} maintenance={filteredMaintenance} onSaveFuel={handleSaveFuel} onDeleteFuel={handleDeleteFuel} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} onSaveMaintenance={handleSaveMaintenance} onDeleteMaintenance={handleDeleteMaintenance} lang={lang} />}
             {activeTab === 'expiries' && <ExpiriesView vehicles={filteredVehicles} drivers={filteredDrivers} onSaveVehicle={handleSaveVehicle} lang={lang} />}
@@ -826,10 +810,11 @@ export default function App() {
                 profile={profile}
                 companies={companies}
                 lang={lang}
-                onUpdate={() => {
-                  window.location.reload();
-                }}
+                onUpdate={() => window.location.reload()}
               />
+            )}
+            {activeTab === 'audit' && profile?.role === 'admin' && (
+              <AuditLogView lang={lang} />
             )}
           </>
         )}

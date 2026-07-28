@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Vehicle, Driver, CheckoutSession, CompanySettings, InspectionChecklist } from '../types';
+import { Vehicle, Driver, CheckoutSession, CompanySettings, InspectionChecklist, Profile } from '../types';
 import { SignatureCanvas } from './SignatureCanvas';
 import { Language, t } from '../lib/i18n';
 import { 
@@ -20,7 +20,8 @@ import {
   ListChecks,
   CheckSquare,
   Square,
-  ShieldAlert
+  ShieldAlert,
+  Trash2
 } from 'lucide-react';
 
 interface CheckoutHubProps {
@@ -28,10 +29,12 @@ interface CheckoutHubProps {
   drivers: Driver[];
   checkouts: CheckoutSession[];
   settings: CompanySettings;
+  profile?: Profile | null;
   onSaveCheckout: (newSession: CheckoutSession) => void;
   onReturnVehicle: (sessionId: string, returnData: Partial<CheckoutSession>) => void;
   onPrintReceipt: (session: CheckoutSession) => void;
-  lang?: Language;
+  onDeleteCheckout?: (id: string) => void;
+  lang?: 'ar' | 'en';
 }
 
 export const CheckoutHub: React.FC<CheckoutHubProps> = ({
@@ -39,9 +42,11 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
   drivers,
   checkouts,
   settings,
+  profile,
   onSaveCheckout,
   onReturnVehicle,
   onPrintReceipt,
+  onDeleteCheckout,
   lang = 'en'
 }) => {
   const isAr = lang === 'ar';
@@ -327,7 +332,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
         </div>
       )}
 
-      {/* COMPLETED HISTORY LIST */}
+      {/* COMPLETED HISTORY LIST - مع زر حذف للأدمن */}
       {activeTab === 'history' && (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
           <div className="overflow-x-auto">
@@ -341,7 +346,10 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                   <th className="p-3">{isAr ? 'إعادة' : 'Return'}</th>
                   <th className="p-3">{isAr ? 'المسافة' : 'Distance'}</th>
                   <th className="p-3">{isAr ? 'التوقيعات' : 'Signatures'}</th>
-                  <th className="p-3 rounded-l-lg">{isAr ? 'طباعة' : 'Print'}</th>
+                  <th className="p-3">{isAr ? 'طباعة' : 'Print'}</th>
+                  {profile?.role === 'admin' && (
+                    <th className="p-3 rounded-l-lg">{isAr ? 'حذف' : 'Delete'}</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -382,6 +390,22 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                           <Printer className="w-4 h-4" />
                         </button>
                       </td>
+                      {profile?.role === 'admin' && (
+                        <td className="p-3">
+                          {onDeleteCheckout && (
+                            <button
+                              onClick={() => {
+                                if (confirm(isAr ? 'هل أنت متأكد من حذف هذه الجلسة؟' : 'Are you sure you want to delete this session?')) {
+                                  onDeleteCheckout(session.id);
+                                }
+                              }}
+                              className="text-rose-500 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -572,7 +596,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                         onChange={(e) => setFormChecklist(prev => ({ ...prev, noScratches: e.target.checked }))}
                         className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                       />
-                      <span className="text-slate-800 dark:text-slate-200">{t('noScratches', lang)}</span>
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'خلو الهيكل الخارجي من الخدوش والصدمات' : 'No external scratches or dents'}</span>
                     </label>
 
                     <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
@@ -582,7 +606,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                         onChange={(e) => setFormChecklist(prev => ({ ...prev, spareTire: e.target.checked }))}
                         className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                       />
-                      <span className="text-slate-800 dark:text-slate-200">{t('spareTire', lang)}</span>
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'وجود الإطار الاحتياطي ورافعة العجلات' : 'Spare tire and jack present'}</span>
                     </label>
 
                     <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
@@ -592,7 +616,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                         onChange={(e) => setFormChecklist(prev => ({ ...prev, fireExtinguisher: e.target.checked }))}
                         className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                       />
-                      <span className="text-slate-800 dark:text-slate-200">{t('fireExtinguisher', lang)}</span>
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'طفاية الحريق وجاهزيتها' : 'Fire extinguisher present'}</span>
                     </label>
 
                     <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
@@ -602,7 +626,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                         onChange={(e) => setFormChecklist(prev => ({ ...prev, warningTriangle: e.target.checked }))}
                         className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                       />
-                      <span className="text-slate-800 dark:text-slate-200">{t('warningTriangle', lang)}</span>
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'مثلث السلامة وحقيبة الإسعافات الأوّلية' : 'Warning triangle and first aid kit'}</span>
                     </label>
 
                     <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
@@ -612,7 +636,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                         onChange={(e) => setFormChecklist(prev => ({ ...prev, registrationDoc: e.target.checked }))}
                         className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                       />
-                      <span className="text-slate-800 dark:text-slate-200">{t('registrationDoc', lang)}</span>
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'وجود رخصة سير المركبة (الاستمارة)' : 'Registration card present'}</span>
                     </label>
 
                     <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
@@ -622,7 +646,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                         onChange={(e) => setFormChecklist(prev => ({ ...prev, cleanliness: e.target.checked }))}
                         className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
                       />
-                      <span className="text-slate-800 dark:text-slate-200">{t('cleanliness', lang)}</span>
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'نظافة هيكل السيارة والمقصورة الداخلية' : 'Clean interior and exterior'}</span>
                     </label>
                   </div>
                 )}
@@ -655,13 +679,13 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                   onClick={() => setShowCheckoutModal(false)}
                   className="px-4 py-2 border rounded-lg text-xs font-bold text-slate-600"
                 >
-                  {isAr ? 'إلغاء' : t('cancel', lang)}
+                  {isAr ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm shadow transition"
                 >
-                  {isAr ? 'اعتماد استلام السيارة والتوقيع' : t('confirmCheckout', lang)}
+                  {isAr ? 'اعتماد استلام السيارة والتوقيع' : 'Confirm Checkout & Signature'}
                 </button>
               </div>
             </form>
@@ -763,13 +787,13 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                   onClick={() => setSelectedReturnSession(null)}
                   className="px-4 py-2 border rounded-lg text-xs font-bold text-slate-600"
                 >
-                  {isAr ? 'إلغاء' : t('cancel', lang)}
+                  {isAr ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-sm shadow transition"
                 >
-                  {isAr ? 'إكمال العودة وتحديث حالة المركبة' : t('confirmReturn', lang)}
+                  {isAr ? 'إكمال العودة وتحديث حالة المركبة' : 'Confirm Return'}
                 </button>
               </div>
             </form>
