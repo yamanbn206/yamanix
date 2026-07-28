@@ -99,17 +99,17 @@ export default function App() {
   const [receiptSession, setReceiptSession] = useState<CheckoutSession | null>(null);
 
   // ============================================================
-  // حفظ اللغة
+  // جميع الـ Hooks في الأعلى (قبل أي return شرطي)
   // ============================================================
+
+  // حفظ اللغة
   useEffect(() => {
     localStorage.setItem('fleet_language', lang);
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // ============================================================
   // جلسة المستخدم
-  // ============================================================
   useEffect(() => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -143,9 +143,15 @@ export default function App() {
     return () => listener?.subscription.unsubscribe();
   }, []);
 
-  // ============================================================
+  // حفظ بيانات المستخدم في localStorage (تم نقله إلى الأعلى)
+  useEffect(() => {
+    if (session?.user) {
+      localStorage.setItem('fleet_user_id', session.user.id);
+      localStorage.setItem('fleet_user_email', session.user.email || '');
+    }
+  }, [session]);
+
   // تحميل البيانات (مع إعادة المحاولة إذا فشل)
-  // ============================================================
   useEffect(() => {
     if (!session) return;
     const loadData = async () => {
@@ -617,7 +623,7 @@ export default function App() {
   ];
 
   // ============================================================
-  // إذا كان المستخدم غير مسجل الدخول
+  // التحقق من حالة التحميل والمصادقة (بعد كل الـ Hooks)
   // ============================================================
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">{t('loading', lang)}</div>;
@@ -636,16 +642,8 @@ export default function App() {
     );
   }
 
-  // حفظ بيانات المستخدم في localStorage لاستخدامها في سجل العمليات
-  useEffect(() => {
-    if (session?.user) {
-      localStorage.setItem('fleet_user_id', session.user.id);
-      localStorage.setItem('fleet_user_email', session.user.email || '');
-    }
-  }, [session]);
-
   // ============================================================
-  // التصيير الرئيسي
+  // التصيير الرئيسي (بعد التأكد من وجود session)
   // ============================================================
   const currentNavItem = navItems.find(item => item.id === activeTab);
   const isAllowed = currentNavItem ? hasPermission(currentNavItem.module, 'view') : false;
