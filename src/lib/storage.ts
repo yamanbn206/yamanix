@@ -25,7 +25,7 @@ import {
 import { supabase } from './supabase';
 
 // ============================================================
-// مفاتيح التخزين المحلي
+// مفاتيح التخزين المحلي (للنسخ الاحتياطي فقط)
 // ============================================================
 const KEYS = {
   COMPANIES: 'fleet_app_companies_v1',
@@ -71,7 +71,7 @@ function toCamelCase(obj: any): any {
 }
 
 // ============================================================
-// دوال التخزين
+// دوال التخزين (تعتمد على Supabase + localStorage كنسخة احتياطية)
 // ============================================================
 export const storage = {
 
@@ -90,32 +90,24 @@ export const storage = {
     } catch (e) {
       console.warn('Supabase fetch failed, using localStorage backup:', e);
     }
+    // العودة إلى localStorage إذا فشل Supabase
     const local = JSON.parse(localStorage.getItem(KEYS.COMPANIES) || JSON.stringify(initialCompanies));
     return Array.isArray(local) ? local : initialCompanies;
   },
 
   saveCompanies: async (companies: Company[]) => {
     if (!Array.isArray(companies)) return;
+    // تحديث localStorage أولاً
     localStorage.setItem(KEYS.COMPANIES, JSON.stringify(companies));
     try {
       const { error } = await supabase
         .from('companies')
         .upsert(toSnakeCase(companies), { onConflict: 'id' });
-      if (error) console.error('❌ Sync companies to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync companies to Supabase failed:', error);
+      }
     } catch (e) {
       console.error('❌ Sync companies error:', e);
-    }
-  },
-
-  deleteCompany: async (id: string) => {
-    try {
-      const { error } = await supabase.from('companies').delete().eq('id', id);
-      if (error) throw error;
-      const companies = JSON.parse(localStorage.getItem(KEYS.COMPANIES) || '[]');
-      localStorage.setItem(KEYS.COMPANIES, JSON.stringify(companies.filter((c: any) => c.id !== id)));
-    } catch (e) {
-      console.error('Delete company error:', e);
-      throw e;
     }
   },
 
@@ -148,12 +140,15 @@ export const storage = {
 
   saveVehicles: async (vehicles: Vehicle[]) => {
     if (!Array.isArray(vehicles)) return;
+    // تحديث localStorage أولاً (للسرعة)
     localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles));
     try {
       const { error } = await supabase
         .from('vehicles')
         .upsert(toSnakeCase(vehicles), { onConflict: 'id' });
-      if (error) console.error('❌ Sync vehicles to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync vehicles to Supabase failed:', error);
+      }
     } catch (e) {
       console.error('❌ Sync vehicles error:', e);
     }
@@ -163,6 +158,7 @@ export const storage = {
     try {
       const { error } = await supabase.from('vehicles').delete().eq('id', id);
       if (error) throw error;
+      // تحديث localStorage بحذف العنصر
       const vehicles = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || '[]');
       localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles.filter((v: any) => v.id !== id)));
     } catch (e) {
@@ -197,7 +193,9 @@ export const storage = {
       const { error } = await supabase
         .from('drivers')
         .upsert(toSnakeCase(drivers), { onConflict: 'id' });
-      if (error) console.error('❌ Sync drivers to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync drivers to Supabase failed:', error);
+      }
     } catch (e) {
       console.error('❌ Sync drivers error:', e);
     }
@@ -241,7 +239,9 @@ export const storage = {
       const { error } = await supabase
         .from('garages')
         .upsert(toSnakeCase(garages), { onConflict: 'id' });
-      if (error) console.error('❌ Sync garages to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync garages to Supabase failed:', error);
+      }
     } catch (e) {
       console.error('❌ Sync garages error:', e);
     }
@@ -285,7 +285,9 @@ export const storage = {
       const { error } = await supabase
         .from('maintenance_records')
         .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) console.error('❌ Sync maintenance records to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync maintenance records to Supabase failed:', error);
+      }
     } catch (e) {
       console.error('❌ Sync maintenance records error:', e);
     }
@@ -329,7 +331,9 @@ export const storage = {
       const { error } = await supabase
         .from('fuel_records')
         .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) console.error('❌ Sync fuel records to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync fuel records to Supabase failed:', error);
+      }
     } catch (e) {
       console.error('❌ Sync fuel records error:', e);
     }
@@ -373,7 +377,9 @@ export const storage = {
       const { error } = await supabase
         .from('expenses')
         .upsert(toSnakeCase(records), { onConflict: 'id' });
-      if (error) console.error('❌ Sync expenses to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync expenses to Supabase failed:', error);
+      }
     } catch (e) {
       console.error('❌ Sync expenses error:', e);
     }
@@ -417,7 +423,9 @@ export const storage = {
       const { error } = await supabase
         .from('checkout_sessions')
         .upsert(toSnakeCase(sessions), { onConflict: 'id' });
-      if (error) console.error('❌ Sync checkout sessions to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync checkout sessions to Supabase failed:', error);
+      }
     } catch (e) {
       console.error('❌ Sync checkout sessions error:', e);
     }
@@ -477,7 +485,9 @@ export const storage = {
       const { error } = await supabase
         .from('documents')
         .upsert(toSnakeCase(docs), { onConflict: 'id' });
-      if (error) console.error('❌ Sync documents to Supabase failed:', error);
+      if (error) {
+        console.error('❌ Sync documents to Supabase failed:', error);
+      }
     } catch (e) {
       console.error('❌ Sync documents error:', e);
     }
@@ -508,6 +518,7 @@ export const storage = {
   },
   resetToDefaults: () => {
     localStorage.clear();
+    // إعادة تعبئة البيانات الافتراضية
     localStorage.setItem(KEYS.COMPANIES, JSON.stringify(initialCompanies));
     localStorage.setItem(KEYS.VEHICLES, JSON.stringify(initialVehicles));
     localStorage.setItem(KEYS.DRIVERS, JSON.stringify(initialDrivers));
