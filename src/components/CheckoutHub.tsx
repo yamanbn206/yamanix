@@ -53,7 +53,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
   const [activeTab, setActiveTab] = useState<'checkout_form' | 'active_list' | 'history'>('active_list');
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [selectedReturnSession, setSelectedReturnSession] = useState<CheckoutSession | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false); // <-- تمت الإضافة
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // New Checkout Form state
   const availableVehicles = vehicles.filter(v => v.status === 'available');
@@ -99,8 +99,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
 
   const handleCreateCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // منع الإرسال المزدوج
     if (isSubmitting) return;
     
     if (!formVehicleId || !formDriverId) {
@@ -115,7 +113,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
     setIsSubmitting(true);
 
     try {
-      // إنشاء ID فريد باستخدام الوقت ورقم عشوائي لتجنب التكرار
       const id = `chk-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
       
       const newSession: CheckoutSession = {
@@ -150,7 +147,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
 
   const handleOpenReturn = (session: CheckoutSession) => {
     setSelectedReturnSession(session);
-    setReturnOdometer(session.checkoutOdometer + 10);
+    setReturnOdometer((session.checkoutOdometer || 0) + 10);
     setReturnNotes('');
     setReturnSignature('');
     setReturnTime(new Date().toISOString().slice(0, 16));
@@ -283,7 +280,9 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white">
                           {vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'} ({vehicle?.plateNumber})
                         </h3>
-                        <p className="text-xs text-slate-500 font-mono">{isAr ? 'عداد الخروج:' : 'Checkout Odometer:'} {session.checkoutOdometer.toLocaleString()} km</p>
+                        <p className="text-xs text-slate-500 font-mono">
+                          {isAr ? 'عداد الخروج:' : 'Checkout Odometer:'} {(session.checkoutOdometer ?? 0).toLocaleString()} km
+                        </p>
                       </div>
                       <button
                         onClick={() => onPrintReceipt(session)}
@@ -373,7 +372,9 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                 {completedSessions.map(session => {
                   const vehicle = vehicles.find(v => v.id === session.vehicleId);
                   const driver = drivers.find(d => d.id === session.driverId);
-                  const distanceDriven = (session.returnOdometer || session.checkoutOdometer) - session.checkoutOdometer;
+                  const checkoutOdo = session.checkoutOdometer || 0;
+                  const returnOdo = session.returnOdometer || 0;
+                  const distanceDriven = Math.max(0, returnOdo - checkoutOdo);
 
                   return (
                     <tr key={session.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/40 transition">
@@ -387,7 +388,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                       <td className="p-3 text-xs dir-ltr text-right">
                         {session.returnTime ? new Date(session.returnTime).toLocaleDateString('en-US') : '-'}
                       </td>
-                      <td className="p-3 text-xs font-mono font-bold text-emerald-600">{distanceDriven} km</td>
+                      <td className="p-3 text-xs font-mono font-bold text-emerald-600">{distanceDriven.toLocaleString()} km</td>
                       <td className="p-3">
                         <div className="flex gap-1">
                           {session.checkoutSignature && (
@@ -732,7 +733,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                   ({vehicles.find(v => v.id === selectedReturnSession.vehicleId)?.plateNumber})
                 </p>
                 <p className="text-slate-500">
-                  {isAr ? 'عداد الاستلام عند الخروج:' : 'Checkout Odometer:'} {selectedReturnSession.checkoutOdometer.toLocaleString()} km
+                  {isAr ? 'عداد الاستلام عند الخروج:' : 'Checkout Odometer:'} {(selectedReturnSession.checkoutOdometer ?? 0).toLocaleString()} km
                 </p>
               </div>
 
@@ -756,7 +757,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                   <input
                     type="number"
                     required
-                    min={selectedReturnSession.checkoutOdometer}
+                    min={selectedReturnSession.checkoutOdometer || 0}
                     value={returnOdometer}
                     onChange={e => setReturnOdometer(Number(e.target.value))}
                     className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"

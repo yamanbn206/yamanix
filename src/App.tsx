@@ -119,7 +119,6 @@ export default function App() {
         if (error) {
           console.error('Session error:', error);
           if (error.status === 400) {
-            // توكن غير صالح - تنظيف
             localStorage.removeItem('fleet_active_company');
             localStorage.removeItem('fleet_user_id');
             localStorage.removeItem('fleet_user_email');
@@ -191,7 +190,6 @@ export default function App() {
         const localCheckouts = JSON.parse(localStorage.getItem('fleet_app_checkouts_v1') || '[]');
         const localDocuments = JSON.parse(localStorage.getItem('fleet_app_documents_v1') || '[]');
 
-        // إذا كانت هناك بيانات محلية، استخدمها أولاً
         if (localVehicles.length > 0 && isInitialLoad) {
           setCompanies(localCompanies.length > 0 ? localCompanies : []);
           setVehicles(localVehicles);
@@ -204,7 +202,7 @@ export default function App() {
           setDocuments(localDocuments);
         }
 
-        // ثم حمّل من Supabase (في الخلفية) وقارن التواريخ
+        // ثم حمّل من Supabase (في الخلفية)
         const [companiesData, vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
           storage.getCompanies(),
           storage.getVehicles(),
@@ -217,35 +215,15 @@ export default function App() {
           storage.getDocuments()
         ]);
 
-        // قم بتحديث الحالة فقط إذا كانت البيانات من Supabase تحتوي على سجلات جديدة
-        // أو إذا كانت البيانات المحلية فارغة (أول تحميل)
-        if (vehiclesData && vehiclesData.length > 0) {
-          setVehicles(vehiclesData);
-        }
-        if (driversData && driversData.length > 0) {
-          setDrivers(driversData);
-        }
-        if (garagesData && garagesData.length > 0) {
-          setGarages(garagesData);
-        }
-        if (maintenanceData && maintenanceData.length > 0) {
-          setMaintenance(maintenanceData);
-        }
-        if (fuelData && fuelData.length > 0) {
-          setFuel(fuelData);
-        }
-        if (expensesData && expensesData.length > 0) {
-          setExpenses(expensesData);
-        }
-        if (checkoutsData && checkoutsData.length > 0) {
-          setCheckouts(checkoutsData);
-        }
-        if (documentsData && documentsData.length > 0) {
-          setDocuments(documentsData);
-        }
-        if (companiesData && companiesData.length > 0) {
-          setCompanies(companiesData);
-        }
+        if (vehiclesData && vehiclesData.length > 0) setVehicles(vehiclesData);
+        if (driversData && driversData.length > 0) setDrivers(driversData);
+        if (garagesData && garagesData.length > 0) setGarages(garagesData);
+        if (maintenanceData && maintenanceData.length > 0) setMaintenance(maintenanceData);
+        if (fuelData && fuelData.length > 0) setFuel(fuelData);
+        if (expensesData && expensesData.length > 0) setExpenses(expensesData);
+        if (checkoutsData && checkoutsData.length > 0) setCheckouts(checkoutsData);
+        if (documentsData && documentsData.length > 0) setDocuments(documentsData);
+        if (companiesData && companiesData.length > 0) setCompanies(companiesData);
 
         setIsInitialLoad(false);
       } catch (error) {
@@ -283,21 +261,22 @@ export default function App() {
   };
 
   // ============================================================
-  // إعدادات الشركة الحالية
+  // إعدادات الشركة الحالية (تم التعديل)
   // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
     if (activeCompanyId === 'all') {
+      // استخدام settings للحقول القابلة للتخصيص مع الاحتفاظ بالعنوان الثابت
       return {
         companyName: lang === 'ar' ? 'مجموعة الشركات المجمّعة' : 'Combined Corporate Group',
         tagline: lang === 'ar' ? 'عرض شامِل ومجمّع لكافة الشركات والبيانات' : 'Combined overview across all registered companies',
-        logoUrl: DEFAULT_LOGO_URL,
-        phone: '+966 50 123 4567',
-        email: 'fleet@yamanix.com',
-        address: lang === 'ar' ? 'المملكة العربية السعودية' : 'Saudi Arabia',
-        commercialRegNumber: 'CR-MULTITENANT',
-        printHeaderNote: 'مستند مجمّع صادر عن نظام إدارة الأسطول الموحد',
-        printFooterNote: 'نظام إدارة الأسطول والشركات المتعددة',
-        currency: 'SAR'
+        logoUrl: settings.logoUrl || DEFAULT_LOGO_URL,
+        phone: settings.phone || '+966 50 123 4567',
+        email: settings.email || 'fleet@yamanix.com',
+        address: settings.address || (lang === 'ar' ? 'المملكة العربية السعودية' : 'Saudi Arabia'),
+        commercialRegNumber: settings.commercialRegNumber || 'CR-MULTITENANT',
+        printHeaderNote: settings.printHeaderNote || 'مستند مجمّع صادر عن نظام إدارة الأسطول الموحد',
+        printFooterNote: settings.printFooterNote || 'نظام إدارة الأسطول والشركات المتعددة',
+        currency: settings.currency || 'SAR'
       };
     }
     const comp = companies.find(c => c.id === activeCompanyId);
@@ -320,91 +299,7 @@ export default function App() {
   }, [activeCompanyId, companies, settings, lang]);
 
   // ============================================================
-  // تصفية البيانات
-  // ============================================================
-  const filteredVehicles = useMemo(() => {
-    if (!Array.isArray(vehicles)) return [];
-    if (activeCompanyId === 'all') return vehicles;
-    return vehicles.filter(v => (v.companyId || 'comp-1') === activeCompanyId);
-  }, [vehicles, activeCompanyId]);
-
-  const filteredDrivers = useMemo(() => {
-    if (!Array.isArray(drivers)) return [];
-    if (activeCompanyId === 'all') return drivers;
-    return drivers.filter(d => (d.companyId || 'comp-1') === activeCompanyId);
-  }, [drivers, activeCompanyId]);
-
-  const filteredGarages = useMemo(() => {
-    if (!Array.isArray(garages)) return [];
-    if (activeCompanyId === 'all') return garages;
-    return garages.filter(g => !g.companyId || g.companyId === activeCompanyId);
-  }, [garages, activeCompanyId]);
-
-  const filteredMaintenance = useMemo(() => {
-    if (!Array.isArray(maintenance)) return [];
-    if (activeCompanyId === 'all') return maintenance;
-    return maintenance.filter(m => (m.companyId || 'comp-1') === activeCompanyId);
-  }, [maintenance, activeCompanyId]);
-
-  const filteredFuel = useMemo(() => {
-    if (!Array.isArray(fuel)) return [];
-    if (activeCompanyId === 'all') return fuel;
-    return fuel.filter(f => (f.companyId || 'comp-1') === activeCompanyId);
-  }, [fuel, activeCompanyId]);
-
-  const filteredExpenses = useMemo(() => {
-    if (!Array.isArray(expenses)) return [];
-    if (activeCompanyId === 'all') return expenses;
-    return expenses.filter(e => (e.companyId || 'comp-1') === activeCompanyId);
-  }, [expenses, activeCompanyId]);
-
-  const filteredCheckouts = useMemo(() => {
-    if (!Array.isArray(checkouts)) return [];
-    if (activeCompanyId === 'all') return checkouts;
-    return checkouts.filter(c => (c.companyId || 'comp-1') === activeCompanyId);
-  }, [checkouts, activeCompanyId]);
-
-  const filteredDocuments = useMemo(() => {
-    if (!Array.isArray(documents)) return [];
-    if (activeCompanyId === 'all') return documents;
-    return documents.filter(doc => (doc.companyId || 'comp-1') === activeCompanyId);
-  }, [documents, activeCompanyId]);
-
-  // ============================================================
-  // التنبيهات
-  // ============================================================
-  const activeAlertsCount = React.useMemo(() => {
-    let count = 0;
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    filteredVehicles.forEach(v => {
-      if (v.licenseExpiryDate) {
-        const d = new Date(v.licenseExpiryDate);
-        d.setHours(0,0,0,0);
-        const days = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        if (days <= 30) count++;
-      }
-      if (v.insuranceExpiryDate) {
-        const d = new Date(v.insuranceExpiryDate);
-        d.setHours(0,0,0,0);
-        const days = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        if (days <= 30) count++;
-      }
-      if (v.nextServiceMileage && v.nextServiceMileage - v.mileage <= 1000) count++;
-    });
-    filteredDrivers.forEach(d => {
-      if (d.licenseExpiryDate) {
-        const date = new Date(d.licenseExpiryDate);
-        date.setHours(0,0,0,0);
-        const days = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        if (days <= 30) count++;
-      }
-    });
-    return count;
-  }, [filteredVehicles, filteredDrivers]);
-
-  // ============================================================
-  // دوال الحفظ والحذف
+  // دوال الحفظ (تم تعديل handleSaveSettings)
   // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
@@ -612,27 +507,35 @@ export default function App() {
 
   // ===== SETTINGS & DOCUMENTS =====
   const handleSaveSettings = (newSettings: CompanySettings) => {
-    const targetCompId = activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId;
-    const updatedCompanies = companies.map(c => {
-      if (c.id === targetCompId) {
-        return {
-          ...c,
-          name: newSettings.companyName,
-          tagline: newSettings.tagline,
-          logoUrl: newSettings.logoUrl || DEFAULT_LOGO_URL,
-          phone: newSettings.phone,
-          email: newSettings.email,
-          address: newSettings.address,
-          commercialRegNumber: newSettings.commercialRegNumber,
-          currency: newSettings.currency
-        };
-      }
-      return c;
-    });
-    setCompanies(updatedCompanies);
-    storage.saveCompanies(updatedCompanies);
+    // تحديث settings دائماً
     setSettings(newSettings);
     storage.saveSettings(newSettings);
+
+    // إذا كانت الشركة محددة، نقوم بتحديث companies أيضاً
+    if (activeCompanyId !== 'all') {
+      const targetCompId = activeCompanyId;
+      const updatedCompanies = companies.map(c => {
+        if (c.id === targetCompId) {
+          return {
+            ...c,
+            name: newSettings.companyName,
+            tagline: newSettings.tagline,
+            logoUrl: newSettings.logoUrl || DEFAULT_LOGO_URL,
+            phone: newSettings.phone,
+            email: newSettings.email,
+            address: newSettings.address,
+            commercialRegNumber: newSettings.commercialRegNumber,
+            currency: newSettings.currency,
+            // إضافة حقول الطباعة (اختياري)
+            printHeaderNote: newSettings.printHeaderNote,
+            printFooterNote: newSettings.printFooterNote,
+          };
+        }
+        return c;
+      });
+      setCompanies(updatedCompanies);
+      storage.saveCompanies(updatedCompanies);
+    }
   };
 
   const handleSaveDocuments = async (docs: CompanyDocument[]) => {
