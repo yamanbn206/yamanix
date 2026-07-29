@@ -110,7 +110,7 @@ export const storage = {
   },
 
   // ============================================================
-  // VEHICLES (مع إضافة companyId تلقائياً)
+  // VEHICLES
   // ============================================================
   getVehicles: async (): Promise<Vehicle[]> => {
     try {
@@ -147,7 +147,7 @@ export const storage = {
         });
       if (error) {
         console.error('❌ Sync vehicles to Supabase failed:', error);
-        await storage.saveAuditLog('vehicles', 'save_failed', { error: error.message, data: vehiclesWithCompany });
+        await storage.saveAuditLog('vehicles', 'save_failed', { error: error.message });
       } else {
         await storage.saveAuditLog('vehicles', 'save', { count: vehiclesWithCompany.length });
       }
@@ -170,7 +170,7 @@ export const storage = {
   },
 
   // ============================================================
-  // DRIVERS (مع إضافة companyId تلقائياً)
+  // DRIVERS
   // ============================================================
   getDrivers: async (): Promise<Driver[]> => {
     try {
@@ -230,7 +230,7 @@ export const storage = {
   },
 
   // ============================================================
-  // GARAGES (مع إضافة companyId تلقائياً)
+  // GARAGES
   // ============================================================
   getGarages: async (): Promise<Garage[]> => {
     try {
@@ -290,7 +290,7 @@ export const storage = {
   },
 
   // ============================================================
-  // MAINTENANCE RECORDS (مع إضافة companyId تلقائياً)
+  // MAINTENANCE RECORDS
   // ============================================================
   getMaintenanceRecords: async (): Promise<MaintenanceRecord[]> => {
     try {
@@ -350,7 +350,7 @@ export const storage = {
   },
 
   // ============================================================
-  // FUEL RECORDS (مع إضافة companyId تلقائياً)
+  // FUEL RECORDS
   // ============================================================
   getFuelRecords: async (): Promise<FuelRecord[]> => {
     try {
@@ -410,7 +410,7 @@ export const storage = {
   },
 
   // ============================================================
-  // EXPENSE RECORDS (مع إضافة companyId تلقائياً)
+  // EXPENSE RECORDS
   // ============================================================
   getExpenseRecords: async (): Promise<ExpenseRecord[]> => {
     try {
@@ -470,7 +470,7 @@ export const storage = {
   },
 
   // ============================================================
-  // CHECKOUT SESSIONS (مع إضافة companyId تلقائياً)
+  // CHECKOUT SESSIONS - المُعدّل
   // ============================================================
   getCheckoutSessions: async (): Promise<CheckoutSession[]> => {
     try {
@@ -499,6 +499,7 @@ export const storage = {
     }));
     localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessionsWithCompany));
     try {
+      // 🔧 محاولة الإدراج باستخدام upsert مع onConflict明確
       const { error } = await supabase
         .from('checkout_sessions')
         .upsert(toSnakeCase(sessionsWithCompany), { 
@@ -508,11 +509,15 @@ export const storage = {
       if (error) {
         console.error('❌ Sync checkout sessions to Supabase failed:', error);
         await storage.saveAuditLog('checkout_sessions', 'save_failed', { error: error.message });
+        // عرض تنبيه للمستخدم بأن البيانات لم تُحفظ في السحابة
+        alert('⚠️ تم حفظ البيانات محلياً فقط، فشل الاتصال بقاعدة البيانات.');
       } else {
         await storage.saveAuditLog('checkout_sessions', 'save', { count: sessionsWithCompany.length });
+        console.log('✅ Checkout sessions synced successfully');
       }
     } catch (e) {
       console.error('❌ Sync checkout sessions error:', e);
+      alert('⚠️ حدث خطأ في الاتصال بقاعدة البيانات، تم الحفظ محلياً.');
     }
   },
 
@@ -548,7 +553,7 @@ export const storage = {
   },
 
   // ============================================================
-  // DOCUMENTS (مع إضافة companyId تلقائياً)
+  // DOCUMENTS
   // ============================================================
   getDocuments: async (): Promise<CompanyDocument[]> => {
     try {
@@ -608,7 +613,7 @@ export const storage = {
   },
 
   // ============================================================
-  // AUDIT LOG (سجل العمليات)
+  // AUDIT LOG
   // ============================================================
   saveAuditLog: async (table: string, action: string, data: any) => {
     try {
