@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CompanySettings, Vehicle, Driver, MaintenanceRecord, FuelRecord, CheckoutSession, Garage, ExpenseRecord, CompanyDocument, Company } from '../types';
 import { Building2, Upload, Save, CheckCircle, Image, Phone, Mail, MapPin, FileText, Download, FileSpreadsheet, Database, Car, Wrench, Fuel, Users, KeyRound, Camera, ShieldCheck, Coins, Plus, Trash2, Check, Layers, Sparkles } from 'lucide-react';
 import { 
@@ -56,6 +56,11 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<'general' | 'companies' | 'vault'>('general');
   const [form, setForm] = useState<CompanySettings>(settings);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // 🔧 التعديل: تحديث form عند تغير settings من الخارج
+  useEffect(() => {
+    setForm(settings);
+  }, [settings]);
 
   const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
   const [newCompanyForm, setNewCompanyForm] = useState<Partial<Company>>({
@@ -616,9 +621,10 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={form.printHeaderNote}
+                    value={form.printHeaderNote || ''}
                     onChange={e => setForm({ ...form, printHeaderNote: e.target.value })}
                     className="w-full px-3 py-2 border rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                    placeholder={isAr ? 'مثال: مستند رسمي صادر عن نظام YAMANIX' : 'e.g. Official document issued by YAMANIX'}
                   />
                 </div>
 
@@ -628,9 +634,10 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                   </label>
                   <textarea
                     rows={2}
-                    value={form.printFooterNote}
+                    value={form.printFooterNote || ''}
                     onChange={e => setForm({ ...form, printFooterNote: e.target.value })}
                     className="w-full px-3 py-2 border rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
+                    placeholder={isAr ? 'مثال: YAMANIX | هاتف: 0114567890 | البريد: fleet@yamanix.com' : 'e.g. YAMANIX | Phone: 0114567890 | Email: fleet@yamanix.com'}
                   />
                 </div>
               </div>
