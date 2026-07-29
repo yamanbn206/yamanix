@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { CompanySettings, Vehicle, Driver, MaintenanceRecord, FuelRecord, CheckoutSession, Garage, ExpenseRecord, CompanyDocument, Company } from '../types';
 import { Building2, Upload, Save, CheckCircle, Image, Phone, Mail, MapPin, FileText, Download, FileSpreadsheet, Database, Car, Wrench, Fuel, Users, KeyRound, Camera, ShieldCheck, Coins, Plus, Trash2, Check, Layers, Sparkles } from 'lucide-react';
 import { 
@@ -57,11 +57,6 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
   const [form, setForm] = useState<CompanySettings>(settings);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // 🔧 التعديل: تحديث form عند تغير settings من الخارج
-  useEffect(() => {
-    setForm(settings);
-  }, [settings]);
-
   const [showAddCompanyModal, setShowAddCompanyModal] = useState(false);
   const [newCompanyForm, setNewCompanyForm] = useState<Partial<Company>>({
     name: '',
@@ -72,6 +67,11 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
     tagline: '',
     currency: 'SAR'
   });
+
+  // تحديث النموذج عندما تتغير الإعدادات من الخارج
+  React.useEffect(() => {
+    setForm(settings);
+  }, [settings]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -623,8 +623,8 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                     type="text"
                     value={form.printHeaderNote || ''}
                     onChange={e => setForm({ ...form, printHeaderNote: e.target.value })}
+                    placeholder={isAr ? 'نص رأس التقرير المطبوع' : 'Print header note text'}
                     className="w-full px-3 py-2 border rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
-                    placeholder={isAr ? 'مثال: مستند رسمي صادر عن نظام YAMANIX' : 'e.g. Official document issued by YAMANIX'}
                   />
                 </div>
 
@@ -636,8 +636,8 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                     rows={2}
                     value={form.printFooterNote || ''}
                     onChange={e => setForm({ ...form, printFooterNote: e.target.value })}
+                    placeholder={isAr ? 'نص تذييل التقرير المطبوع' : 'Print footer note text'}
                     className="w-full px-3 py-2 border rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
-                    placeholder={isAr ? 'مثال: YAMANIX | هاتف: 0114567890 | البريد: fleet@yamanix.com' : 'e.g. YAMANIX | Phone: 0114567890 | Email: fleet@yamanix.com'}
                   />
                 </div>
               </div>
@@ -716,11 +716,11 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                   </div>
 
                   <p className="text-[10px] text-slate-600 italic border-b pb-2 border-slate-100">
-                    "{form.printHeaderNote}"
+                    "{form.printHeaderNote || t('printHeaderNoteLabel', lang)}"
                   </p>
 
                   <div className="text-[10px] text-slate-500 text-center pt-1">
-                    {form.printFooterNote}
+                    {form.printFooterNote || t('printFooterNoteLabel', lang)}
                   </div>
                 </div>
               </div>

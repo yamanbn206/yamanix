@@ -470,7 +470,7 @@ export const storage = {
   },
 
   // ============================================================
-  // CHECKOUT SESSIONS - المُعدّل
+  // CHECKOUT SESSIONS - المُعدّل بالكامل
   // ============================================================
   getCheckoutSessions: async (): Promise<CheckoutSession[]> => {
     try {
@@ -493,26 +493,38 @@ export const storage = {
   saveCheckoutSessions: async (sessions: CheckoutSession[]) => {
     if (!Array.isArray(sessions)) return;
     const activeCompanyId = storage.getActiveCompanyId();
-    const sessionsWithCompany = sessions.map(s => ({
-      ...s,
-      companyId: s.companyId || activeCompanyId
-    }));
-    localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessionsWithCompany));
+    
+    // تحويل البيانات إلى Snake Case مع التأكد من التعامل مع JSONB
+    const sessionsForDb = sessions.map(s => {
+      const snake = toSnakeCase(s);
+      // التأكد من أن checkout_checklist هو كائن JSONB صحيح
+      if (s.checkoutChecklist) {
+        snake.checkout_checklist = s.checkoutChecklist;
+      }
+      if (s.returnChecklist) {
+        snake.return_checklist = s.returnChecklist;
+      }
+      return snake;
+    });
+
+    localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessions));
+    
     try {
-      // 🔧 محاولة الإدراج باستخدام upsert مع onConflict明確
+      // محاولة الإدراج باستخدام upsert مع onConflict صريح
       const { error } = await supabase
         .from('checkout_sessions')
-        .upsert(toSnakeCase(sessionsWithCompany), { 
+        .upsert(sessionsForDb, { 
           onConflict: 'id',
           ignoreDuplicates: false 
         });
+        
       if (error) {
         console.error('❌ Sync checkout sessions to Supabase failed:', error);
         await storage.saveAuditLog('checkout_sessions', 'save_failed', { error: error.message });
         // عرض تنبيه للمستخدم بأن البيانات لم تُحفظ في السحابة
-        alert('⚠️ تم حفظ البيانات محلياً فقط، فشل الاتصال بقاعدة البيانات.');
+        alert('⚠️ تم حفظ البيانات محلياً فقط، فشل الاتصال بقاعدة البيانات.\n' + error.message);
       } else {
-        await storage.saveAuditLog('checkout_sessions', 'save', { count: sessionsWithCompany.length });
+        await storage.saveAuditLog('checkout_sessions', 'save', { count: sessions.length });
         console.log('✅ Checkout sessions synced successfully');
       }
     } catch (e) {

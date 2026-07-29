@@ -80,7 +80,6 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
 
   // ===== بيانات التطبيق =====
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -125,7 +124,6 @@ export default function App() {
             setSession(null);
             setProfile(null);
             setLoading(false);
-            setAuthError('جلسة غير صالحة، يرجى تسجيل الدخول مرة أخرى');
             return;
           }
         }
@@ -172,14 +170,14 @@ export default function App() {
   }, [session]);
 
   // ============================================================
-  // تحميل البيانات - محسّن لتجنب استبدال التغييرات المحلية
+  // تحميل البيانات
   // ============================================================
   useEffect(() => {
     if (!session) return;
 
     const loadData = async () => {
       try {
-        // أولاً: تحميل البيانات من localStorage فوراً (للسرعة)
+        // تحميل من localStorage أولاً
         const localCompanies = JSON.parse(localStorage.getItem('fleet_app_companies_v1') || '[]');
         const localVehicles = JSON.parse(localStorage.getItem('fleet_app_vehicles_v1') || '[]');
         const localDrivers = JSON.parse(localStorage.getItem('fleet_app_drivers_v1') || '[]');
@@ -202,7 +200,7 @@ export default function App() {
           setDocuments(localDocuments);
         }
 
-        // ثم حمّل من Supabase (في الخلفية)
+        // تحميل من Supabase
         const [companiesData, vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
           storage.getCompanies(),
           storage.getVehicles(),
@@ -266,8 +264,8 @@ export default function App() {
   const currentCompanySettings = useMemo<CompanySettings>(() => {
     if (activeCompanyId === 'all') {
       return {
-        companyName: lang === 'ar' ? 'مجموعة الشركات المجمّعة' : 'Combined Corporate Group',
-        tagline: lang === 'ar' ? 'عرض شامِل ومجمّع لكافة الشركات والبيانات' : 'Combined overview across all registered companies',
+        companyName: settings.companyName || (lang === 'ar' ? 'مجموعة الشركات المجمّعة' : 'Combined Corporate Group'),
+        tagline: settings.tagline || (lang === 'ar' ? 'عرض شامِل ومجمّع لكافة الشركات والبيانات' : 'Combined overview across all registered companies'),
         logoUrl: settings.logoUrl || DEFAULT_LOGO_URL,
         phone: settings.phone || '+966 50 123 4567',
         email: settings.email || 'fleet@yamanix.com',
@@ -289,8 +287,8 @@ export default function App() {
         email: comp.email || settings.email,
         address: comp.address || settings.address,
         commercialRegNumber: comp.commercialRegNumber || settings.commercialRegNumber,
-        printHeaderNote: settings.printHeaderNote,
-        printFooterNote: settings.printFooterNote,
+        printHeaderNote: settings.printHeaderNote || comp.printHeaderNote,
+        printFooterNote: settings.printFooterNote || comp.printFooterNote,
         currency: comp.currency || settings.currency || 'SAR'
       };
     }
@@ -349,7 +347,7 @@ export default function App() {
   }, [documents, activeCompanyId]);
 
   // ============================================================
-  // التنبيهات - تم نقلها إلى أعلى للتأكد من تعريفها قبل الاستخدام
+  // التنبيهات
   // ============================================================
   const activeAlertsCount = React.useMemo(() => {
     let count = 0;
@@ -596,9 +594,11 @@ export default function App() {
 
   // ===== SETTINGS & DOCUMENTS =====
   const handleSaveSettings = (newSettings: CompanySettings) => {
+    // تحديث settings دائماً
     setSettings(newSettings);
     storage.saveSettings(newSettings);
 
+    // إذا كانت الشركة محددة، نقوم بتحديث companies أيضاً مع الحقول الجديدة
     if (activeCompanyId !== 'all') {
       const targetCompId = activeCompanyId;
       const updatedCompanies = companies.map(c => {
@@ -619,6 +619,16 @@ export default function App() {
         }
         return c;
       });
+      setCompanies(updatedCompanies);
+      storage.saveCompanies(updatedCompanies);
+    } else {
+      // في وضع "جميع الشركات"، نقوم بحفظ الإعدادات في storage فقط
+      // كما نقوم بتحديث جميع الشركات بالحقول الجديدة إذا أردت
+      const updatedCompanies = companies.map(c => ({
+        ...c,
+        printHeaderNote: newSettings.printHeaderNote,
+        printFooterNote: newSettings.printFooterNote,
+      }));
       setCompanies(updatedCompanies);
       storage.saveCompanies(updatedCompanies);
     }
@@ -684,7 +694,7 @@ export default function App() {
   ];
 
   // ============================================================
-  // التحقق من حالة التحميل والمصادقة (بعد كل الـ Hooks)
+  // التحقق من حالة التحميل والمصادقة
   // ============================================================
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">{t('loading', lang)}</div>;
@@ -704,7 +714,7 @@ export default function App() {
   }
 
   // ============================================================
-  // التصيير الرئيسي (بعد التأكد من وجود session)
+  // التصيير الرئيسي
   // ============================================================
   const currentNavItem = navItems.find(item => item.id === activeTab);
   const isAllowed = currentNavItem ? hasPermission(currentNavItem.module, 'view') : false;

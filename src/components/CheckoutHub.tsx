@@ -98,7 +98,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
   };
 
   const handleCreateCheckout = async (e: React.FormEvent) => {
-    e.preventDefault(); // منع الإرسال الافتراضي
+    e.preventDefault();
     if (isSubmitting) return;
     
     if (!formVehicleId || !formDriverId) {
@@ -113,8 +113,10 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
     setIsSubmitting(true);
 
     try {
-      // إنشاء ID فريد باستخدام الوقت ورقم عشوائي لتجنب التكرار
-      const id = `chk-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
+      // إنشاء ID فريد باستخدام الوقت والرقم العشوائي
+      const timestamp = Date.now().toString(36);
+      const random = Math.random().toString(36).substring(2, 6);
+      const id = `chk-${timestamp}-${random}`;
       
       const newSession: CheckoutSession = {
         id: id,
@@ -134,10 +136,8 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
         status: 'active'
       };
 
-      // استدعاء دالة الحفظ
       await onSaveCheckout(newSession);
       
-      // إعادة تعيين النموذج وإغلاق المودال
       setShowCheckoutModal(false);
       resetForm();
       setActiveTab('active_list');
