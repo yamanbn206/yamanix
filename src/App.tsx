@@ -261,11 +261,10 @@ export default function App() {
   };
 
   // ============================================================
-  // إعدادات الشركة الحالية (تم التعديل)
+  // إعدادات الشركة الحالية
   // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
     if (activeCompanyId === 'all') {
-      // استخدام settings للحقول القابلة للتخصيص مع الاحتفاظ بالعنوان الثابت
       return {
         companyName: lang === 'ar' ? 'مجموعة الشركات المجمّعة' : 'Combined Corporate Group',
         tagline: lang === 'ar' ? 'عرض شامِل ومجمّع لكافة الشركات والبيانات' : 'Combined overview across all registered companies',
@@ -299,7 +298,97 @@ export default function App() {
   }, [activeCompanyId, companies, settings, lang]);
 
   // ============================================================
-  // دوال الحفظ (تم تعديل handleSaveSettings)
+  // تصفية البيانات
+  // ============================================================
+  const filteredVehicles = useMemo(() => {
+    if (!Array.isArray(vehicles)) return [];
+    if (activeCompanyId === 'all') return vehicles;
+    return vehicles.filter(v => (v.companyId || 'comp-1') === activeCompanyId);
+  }, [vehicles, activeCompanyId]);
+
+  const filteredDrivers = useMemo(() => {
+    if (!Array.isArray(drivers)) return [];
+    if (activeCompanyId === 'all') return drivers;
+    return drivers.filter(d => (d.companyId || 'comp-1') === activeCompanyId);
+  }, [drivers, activeCompanyId]);
+
+  const filteredGarages = useMemo(() => {
+    if (!Array.isArray(garages)) return [];
+    if (activeCompanyId === 'all') return garages;
+    return garages.filter(g => !g.companyId || g.companyId === activeCompanyId);
+  }, [garages, activeCompanyId]);
+
+  const filteredMaintenance = useMemo(() => {
+    if (!Array.isArray(maintenance)) return [];
+    if (activeCompanyId === 'all') return maintenance;
+    return maintenance.filter(m => (m.companyId || 'comp-1') === activeCompanyId);
+  }, [maintenance, activeCompanyId]);
+
+  const filteredFuel = useMemo(() => {
+    if (!Array.isArray(fuel)) return [];
+    if (activeCompanyId === 'all') return fuel;
+    return fuel.filter(f => (f.companyId || 'comp-1') === activeCompanyId);
+  }, [fuel, activeCompanyId]);
+
+  const filteredExpenses = useMemo(() => {
+    if (!Array.isArray(expenses)) return [];
+    if (activeCompanyId === 'all') return expenses;
+    return expenses.filter(e => (e.companyId || 'comp-1') === activeCompanyId);
+  }, [expenses, activeCompanyId]);
+
+  const filteredCheckouts = useMemo(() => {
+    if (!Array.isArray(checkouts)) return [];
+    if (activeCompanyId === 'all') return checkouts;
+    return checkouts.filter(c => (c.companyId || 'comp-1') === activeCompanyId);
+  }, [checkouts, activeCompanyId]);
+
+  const filteredDocuments = useMemo(() => {
+    if (!Array.isArray(documents)) return [];
+    if (activeCompanyId === 'all') return documents;
+    return documents.filter(doc => (doc.companyId || 'comp-1') === activeCompanyId);
+  }, [documents, activeCompanyId]);
+
+  // ============================================================
+  // التنبيهات - تم نقلها إلى أعلى للتأكد من تعريفها قبل الاستخدام
+  // ============================================================
+  const activeAlertsCount = React.useMemo(() => {
+    let count = 0;
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    if (Array.isArray(filteredVehicles)) {
+      filteredVehicles.forEach(v => {
+        if (v.licenseExpiryDate) {
+          const d = new Date(v.licenseExpiryDate);
+          d.setHours(0,0,0,0);
+          const days = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (days <= 30) count++;
+        }
+        if (v.insuranceExpiryDate) {
+          const d = new Date(v.insuranceExpiryDate);
+          d.setHours(0,0,0,0);
+          const days = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (days <= 30) count++;
+        }
+        if (v.nextServiceMileage && v.mileage !== undefined && v.nextServiceMileage - v.mileage <= 1000) count++;
+      });
+    }
+    
+    if (Array.isArray(filteredDrivers)) {
+      filteredDrivers.forEach(d => {
+        if (d.licenseExpiryDate) {
+          const date = new Date(d.licenseExpiryDate);
+          date.setHours(0,0,0,0);
+          const days = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+          if (days <= 30) count++;
+        }
+      });
+    }
+    return count;
+  }, [filteredVehicles, filteredDrivers]);
+
+  // ============================================================
+  // دوال الحفظ والحذف
   // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
@@ -507,11 +596,9 @@ export default function App() {
 
   // ===== SETTINGS & DOCUMENTS =====
   const handleSaveSettings = (newSettings: CompanySettings) => {
-    // تحديث settings دائماً
     setSettings(newSettings);
     storage.saveSettings(newSettings);
 
-    // إذا كانت الشركة محددة، نقوم بتحديث companies أيضاً
     if (activeCompanyId !== 'all') {
       const targetCompId = activeCompanyId;
       const updatedCompanies = companies.map(c => {
@@ -526,7 +613,6 @@ export default function App() {
             address: newSettings.address,
             commercialRegNumber: newSettings.commercialRegNumber,
             currency: newSettings.currency,
-            // إضافة حقول الطباعة (اختياري)
             printHeaderNote: newSettings.printHeaderNote,
             printFooterNote: newSettings.printFooterNote,
           };
