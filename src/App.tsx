@@ -153,10 +153,13 @@ export default function App() {
   }, [session]);
 
   // ============================================================
-  // 4. تحميل البيانات من Supabase
+  // 4. تحميل البيانات من Supabase (مع إصلاح isDataLoading)
   // ============================================================
   useEffect(() => {
-    if (!session) return;
+    if (!session) {
+      setIsDataLoading(false); // ✅ حل مشكلة التحميل العالق
+      return;
+    }
 
     const loadData = async () => {
       try {
@@ -185,6 +188,7 @@ export default function App() {
         setIsDataLoading(false);
       } catch (error) {
         console.error('Failed to load data from Supabase:', error);
+        // محاولة تحميل من localStorage كنسخة احتياطية
         try {
           const localVehicles = JSON.parse(localStorage.getItem('fleet_app_vehicles_v1') || '[]');
           const localDrivers = JSON.parse(localStorage.getItem('fleet_app_drivers_v1') || '[]');
