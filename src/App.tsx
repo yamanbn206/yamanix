@@ -35,28 +35,9 @@ import { UserManagement } from './components/UserManagement';
 import { AuditLogView } from './components/AuditLogView';
 
 import { 
-  Car, 
-  Users, 
-  KeyRound, 
-  Wrench, 
-  Fuel, 
-  ShieldAlert, 
-  Printer, 
-  Sparkles, 
-  Building2, 
-  LayoutDashboard, 
-  Moon, 
-  Sun, 
-  RotateCcw,
-  Menu,
-  X,
-  Bell,
-  LogIn,
-  Languages,
-  UserCog,
-  Shield,
-  LogOut,
-  History
+  Car, Users, KeyRound, Wrench, Fuel, ShieldAlert, Printer, Sparkles, 
+  Building2, LayoutDashboard, Moon, Sun, Menu, X, Bell, Languages, 
+  UserCog, Shield, LogOut, History
 } from 'lucide-react';
 
 const DEFAULT_LOGO_URL = '/yamanix-logo.png';
@@ -84,7 +65,6 @@ export default function App() {
 
   // ===== بيانات التطبيق =====
   const [companies, setCompanies] = useState<Company[]>([]);
-  // 🔧 تغيير القيمة الافتراضية إلى null بدلاً من 'all'
   const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(() => {
     const saved = localStorage.getItem('fleet_active_company');
     return saved && saved !== 'all' ? saved : null;
@@ -105,14 +85,14 @@ export default function App() {
   // جميع الـ Hooks في الأعلى (قبل أي return شرطي)
   // ============================================================
 
-  // حفظ اللغة
+  // 1. حفظ اللغة
   useEffect(() => {
     localStorage.setItem('fleet_language', lang);
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // جلسة المستخدم
+  // 2. جلسة المستخدم
   useEffect(() => {
     const getSession = async () => {
       try {
@@ -164,7 +144,7 @@ export default function App() {
     return () => listener?.subscription.unsubscribe();
   }, []);
 
-  // حفظ بيانات المستخدم في localStorage
+  // 3. حفظ بيانات المستخدم في localStorage
   useEffect(() => {
     if (session?.user) {
       localStorage.setItem('fleet_user_id', session.user.id);
@@ -172,9 +152,7 @@ export default function App() {
     }
   }, [session]);
 
-  // ============================================================
-  // تحميل البيانات - من Supabase فقط
-  // ============================================================
+  // 4. تحميل البيانات من Supabase
   useEffect(() => {
     if (!session) return;
 
@@ -205,12 +183,12 @@ export default function App() {
         setIsDataLoading(false);
       } catch (error) {
         console.error('Failed to load data from Supabase:', error);
+        // محاولة تحميل من localStorage كنسخة احتياطية
         try {
           const localVehicles = JSON.parse(localStorage.getItem('fleet_app_vehicles_v1') || '[]');
           const localDrivers = JSON.parse(localStorage.getItem('fleet_app_drivers_v1') || '[]');
           const localMaintenance = JSON.parse(localStorage.getItem('fleet_app_maintenance_v1') || '[]');
           const localCheckouts = JSON.parse(localStorage.getItem('fleet_app_checkouts_v1') || '[]');
-          
           if (localVehicles.length > 0) setVehicles(localVehicles);
           if (localDrivers.length > 0) setDrivers(localDrivers);
           if (localMaintenance.length > 0) setMaintenance(localMaintenance);
@@ -224,24 +202,18 @@ export default function App() {
     loadData();
   }, [session]);
 
-  // ============================================================
-  // 🔧 تعيين الشركة الافتراضية إذا لم تكن محددة
-  // ============================================================
+  // 5. تعيين الشركة الافتراضية إذا لم تكن محددة
   useEffect(() => {
     if (companies.length > 0 && !activeCompanyId) {
-      // إذا لم تكن هناك شركة نشطة، اختر الأولى
-      const firstCompanyId = companies[0].id;
-      setActiveCompanyIdState(firstCompanyId);
-      localStorage.setItem('fleet_active_company', firstCompanyId);
+      const firstId = companies[0].id;
+      setActiveCompanyIdState(firstId);
+      localStorage.setItem('fleet_active_company', firstId);
     }
   }, [companies, activeCompanyId]);
 
-  // ============================================================
-  // استماع Realtime لتحديث checkout_sessions تلقائياً
-  // ============================================================
+  // 6. استماع Realtime لتحديث checkout_sessions
   useEffect(() => {
     if (!session) return;
-
     const channel = supabase
       .channel('checkout_changes')
       .on(
@@ -258,7 +230,6 @@ export default function App() {
         }
       )
       .subscribe();
-
     return () => {
       supabase.removeChannel(channel);
     };
@@ -278,7 +249,6 @@ export default function App() {
       const updated = [...companies, newComp];
       setCompanies(updated);
       await storage.saveCompanies(updated);
-      // إذا لم تكن هناك شركة نشطة، اختر الجديدة
       if (!activeCompanyId) {
         handleSelectCompany(newComp.id);
       }
@@ -312,7 +282,6 @@ export default function App() {
   // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
     if (!activeCompanyId) {
-      // إذا لم تكن هناك شركة نشطة، استخدم الإعدادات الافتراضية
       return {
         companyName: lang === 'ar' ? 'الرجاء اختيار شركة' : 'Please select a company',
         tagline: '',
@@ -395,7 +364,6 @@ export default function App() {
     let count = 0;
     const today = new Date();
     today.setHours(0,0,0,0);
-    
     if (Array.isArray(filteredVehicles)) {
       filteredVehicles.forEach(v => {
         if (v.licenseExpiryDate) {
@@ -413,7 +381,6 @@ export default function App() {
         if (v.nextServiceMileage && v.mileage !== undefined && v.nextServiceMileage - v.mileage <= 1000) count++;
       });
     }
-    
     if (Array.isArray(filteredDrivers)) {
       filteredDrivers.forEach(d => {
         if (d.licenseExpiryDate) {
@@ -428,7 +395,7 @@ export default function App() {
   }, [filteredVehicles, filteredDrivers]);
 
   // ============================================================
-  // دوال الحفظ والحذف مع معالجة الأخطاء
+  // دوال الحفظ والحذف
   // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
@@ -462,7 +429,6 @@ export default function App() {
       return;
     }
     try {
-      // 🔧 استخدام activeCompanyId بدلاً من 'comp-1' الافتراضي
       const compId = v.companyId || activeCompanyId || (companies[0]?.id || 'comp-1');
       const updatedVehicle = { 
         ...v, 
@@ -693,7 +659,6 @@ export default function App() {
       return;
     }
     try {
-      // 🔧 تعيين companyId من الشركة النشطة
       const compId = session.companyId || activeCompanyId || (companies[0]?.id || 'comp-1');
       const updatedSession = { ...session, companyId: compId };
       const updated = [updatedSession, ...checkouts];
@@ -811,9 +776,6 @@ export default function App() {
     setActiveTab('reports');
   };
 
-  // ============================================================
-  // تسجيل الخروج
-  // ============================================================
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -842,7 +804,7 @@ export default function App() {
   ];
 
   // ============================================================
-  // التحقق من حالة التحميل والمصادقة
+  // التحقق من حالة التحميل والمصادقة (بعد كل الـ Hooks)
   // ============================================================
   if (loading || isDataLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">{t('loading', lang)}</div>;
@@ -861,7 +823,6 @@ export default function App() {
     );
   }
 
-  // إذا لم تكن هناك شركة محددة ولا توجد شركات، أظهر رسالة
   if (companies.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">
@@ -884,13 +845,10 @@ export default function App() {
     );
   }
 
-  // إذا لم تكن هناك شركة نشطة ولكن هناك شركات، اختر الأولى تلقائياً
   if (!activeCompanyId && companies.length > 0) {
-    // هذا لن يحدث بسبب useEffect أعلاه، لكن كضمان
     const firstId = companies[0].id;
     setActiveCompanyIdState(firstId);
     localStorage.setItem('fleet_active_company', firstId);
-    // نعيد التصيير بعد التحديث
     return null;
   }
 
@@ -938,7 +896,6 @@ export default function App() {
 
           <div className="flex items-center gap-2 flex-shrink-0">
             <OfflineSyncBadge lang={lang} />
-
             <button
               onClick={() => {
                 const newLang = lang === 'en' ? 'ar' : 'en';
@@ -950,7 +907,6 @@ export default function App() {
               <Languages className="w-4 h-4" />
               <span>{lang === 'en' ? 'AR' : 'EN'}</span>
             </button>
-
             <button
               onClick={() => {
                 setNotificationDrawerOpen(true);
@@ -965,22 +921,18 @@ export default function App() {
                 </span>
               )}
             </button>
-
             <button onClick={handleLogout} className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition" title={lang === 'ar' ? 'تسجيل الخروج' : 'Logout'}>
               <LogOut className="w-5 h-5" />
             </button>
-
             <button onClick={() => setDarkMode(!darkMode)} className="p-2 text-slate-600 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-gray-800/60 rounded-lg transition">
               {darkMode ? <Sun className="w-5 h-5 text-[#cbb26a]" /> : <Moon className="w-5 h-5" />}
             </button>
-
             <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 lg:hidden text-slate-700 dark:text-gray-300 hover:text-slate-900 dark:hover:text-white">
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
 
-        {/* شريط التبويبات */}
         <div className="hidden lg:block bg-slate-50 dark:bg-[#0a0b0d]/90 border-t border-slate-200 dark:border-gray-800/80 px-4 sm:px-6">
           <div className="max-w-full flex items-center gap-1 overflow-x-auto py-1.5">
             {navItems.map(item => {

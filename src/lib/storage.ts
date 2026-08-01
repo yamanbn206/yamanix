@@ -25,7 +25,7 @@ import {
 import { supabase } from './supabase';
 
 // ============================================================
-// مفاتيح التخزين المحلي - تستخدم فقط للنسخ الاحتياطي
+// مفاتيح التخزين المحلي (للنسخ الاحتياطي فقط)
 // ============================================================
 const KEYS = {
   COMPANIES: 'fleet_app_companies_v1',
@@ -39,6 +39,8 @@ const KEYS = {
   CHECKOUTS: 'fleet_app_checkouts_v1',
   SETTINGS: 'fleet_app_settings_v1',
   DOCUMENTS: 'fleet_app_documents_v1',
+  PENDING_SYNC: 'fleet_pending_sync_count', // مفتاح التزامن
+  LAST_SYNC_TIME: 'fleet_last_sync_time',
 };
 
 // ============================================================
@@ -67,7 +69,7 @@ function toCamelCase(obj: any): any {
 }
 
 // ============================================================
-// دوال التخزين - تعمل مباشرة مع Supabase
+// كائن التخزين الرئيسي
 // ============================================================
 export const storage = {
 
@@ -85,25 +87,19 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         const camelData = toCamelCase(data);
-        // تحديث localStorage كنسخة احتياطية فقط
         localStorage.setItem(KEYS.COMPANIES, JSON.stringify(camelData));
         return camelData;
       }
-      // إذا كانت قاعدة البيانات فارغة، استخدم البيانات الأولية واحفظها في Supabase
+      // إذا كانت فارغة، استخدم البيانات الأولية
       await storage.saveCompanies(initialCompanies);
       return initialCompanies;
     } catch (e) {
       console.error('❌ Failed to fetch companies:', e);
-      // في حالة الفشل، حاول قراءة من localStorage كنسخة احتياطية
       const local = localStorage.getItem(KEYS.COMPANIES);
       if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          return initialCompanies;
-        }
+        try { return JSON.parse(local); } catch { return initialCompanies; }
       }
       return initialCompanies;
     }
@@ -136,7 +132,7 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.VEHICLES, JSON.stringify(camelData));
         return camelData;
@@ -147,11 +143,7 @@ export const storage = {
       console.error('❌ Failed to fetch vehicles:', e);
       const local = localStorage.getItem(KEYS.VEHICLES);
       if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          return initialVehicles;
-        }
+        try { return JSON.parse(local); } catch { return initialVehicles; }
       }
       return initialVehicles;
     }
@@ -201,7 +193,7 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.DRIVERS, JSON.stringify(camelData));
         return camelData;
@@ -212,11 +204,7 @@ export const storage = {
       console.error('❌ Failed to fetch drivers:', e);
       const local = localStorage.getItem(KEYS.DRIVERS);
       if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          return initialDrivers;
-        }
+        try { return JSON.parse(local); } catch { return initialDrivers; }
       }
       return initialDrivers;
     }
@@ -266,7 +254,7 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.GARAGES, JSON.stringify(camelData));
         return camelData;
@@ -277,11 +265,7 @@ export const storage = {
       console.error('❌ Failed to fetch garages:', e);
       const local = localStorage.getItem(KEYS.GARAGES);
       if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          return initialGarages;
-        }
+        try { return JSON.parse(local); } catch { return initialGarages; }
       }
       return initialGarages;
     }
@@ -322,7 +306,7 @@ export const storage = {
   },
 
   // ============================================================
-  // MAINTENANCE RECORDS - المعدل
+  // MAINTENANCE RECORDS
   // ============================================================
   getMaintenanceRecords: async (): Promise<MaintenanceRecord[]> => {
     try {
@@ -331,7 +315,7 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(camelData));
         return camelData;
@@ -342,11 +326,7 @@ export const storage = {
       console.error('❌ Failed to fetch maintenance records:', e);
       const local = localStorage.getItem(KEYS.MAINTENANCE);
       if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          return initialMaintenanceRecords;
-        }
+        try { return JSON.parse(local); } catch { return initialMaintenanceRecords; }
       }
       return initialMaintenanceRecords;
     }
@@ -396,7 +376,7 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.FUEL, JSON.stringify(camelData));
         return camelData;
@@ -407,11 +387,7 @@ export const storage = {
       console.error('❌ Failed to fetch fuel records:', e);
       const local = localStorage.getItem(KEYS.FUEL);
       if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          return initialFuelRecords;
-        }
+        try { return JSON.parse(local); } catch { return initialFuelRecords; }
       }
       return initialFuelRecords;
     }
@@ -461,7 +437,7 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.EXPENSES, JSON.stringify(camelData));
         return camelData;
@@ -472,11 +448,7 @@ export const storage = {
       console.error('❌ Failed to fetch expense records:', e);
       const local = localStorage.getItem(KEYS.EXPENSES);
       if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          return initialExpenseRecords;
-        }
+        try { return JSON.parse(local); } catch { return initialExpenseRecords; }
       }
       return initialExpenseRecords;
     }
@@ -526,7 +498,7 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(camelData));
         return camelData;
@@ -537,11 +509,7 @@ export const storage = {
       console.error('❌ Failed to fetch checkout sessions:', e);
       const local = localStorage.getItem(KEYS.CHECKOUTS);
       if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          return initialCheckoutSessions;
-        }
+        try { return JSON.parse(local); } catch { return initialCheckoutSessions; }
       }
       return initialCheckoutSessions;
     }
@@ -587,11 +555,7 @@ export const storage = {
   getSettings: (): CompanySettings => {
     const local = localStorage.getItem(KEYS.SETTINGS);
     if (local) {
-      try {
-        return JSON.parse(local);
-      } catch (e) {
-        console.warn('Invalid settings in localStorage, using defaults');
-      }
+      try { return JSON.parse(local); } catch { /* ignore */ }
     }
     return initialCompanySettings;
   },
@@ -610,7 +574,7 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      if (data && Array.isArray(data) && data.length > 0) {
+      if (data && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(camelData));
         return camelData;
@@ -621,11 +585,7 @@ export const storage = {
       console.error('❌ Failed to fetch documents:', e);
       const local = localStorage.getItem(KEYS.DOCUMENTS);
       if (local) {
-        try {
-          return JSON.parse(local);
-        } catch {
-          return initialCompanyDocuments;
-        }
+        try { return JSON.parse(local); } catch { return initialCompanyDocuments; }
       }
       return initialCompanyDocuments;
     }
@@ -672,7 +632,6 @@ export const storage = {
     try {
       const userId = localStorage.getItem('fleet_user_id') || 'system';
       const userEmail = localStorage.getItem('fleet_user_email') || 'system@yamanix.com';
-      
       const logEntry = {
         user_id: userId,
         user_email: userEmail,
@@ -681,11 +640,9 @@ export const storage = {
         data: data,
         created_at: new Date().toISOString()
       };
-      
       const { error } = await supabase
         .from('audit_log')
         .insert([logEntry]);
-      
       if (error) {
         console.error('❌ Failed to save audit log:', error);
         const localLogs = JSON.parse(localStorage.getItem('fleet_audit_logs') || '[]');
@@ -704,10 +661,7 @@ export const storage = {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(500);
-      
-      if (!error && data) {
-        return data;
-      }
+      if (!error && data) return data;
     } catch (e) {
       console.warn('Failed to fetch audit logs from Supabase:', e);
     }
@@ -715,7 +669,28 @@ export const storage = {
   },
 
   // ============================================================
-  // دوال إضافية
+  // 🟢 دوال المزامنة المفقودة (تم إضافتها هنا)
+  // ============================================================
+  getPendingSyncCount: (): number => {
+    try {
+      const val = localStorage.getItem(KEYS.PENDING_SYNC);
+      return val ? parseInt(val, 10) : 0;
+    } catch {
+      return 0;
+    }
+  },
+
+  getLastSyncTime: (): string | null => {
+    return localStorage.getItem(KEYS.LAST_SYNC_TIME);
+  },
+
+  clearPendingSync: (): void => {
+    localStorage.setItem(KEYS.PENDING_SYNC, '0');
+    localStorage.setItem(KEYS.LAST_SYNC_TIME, new Date().toISOString());
+  },
+
+  // ============================================================
+  // إعادة تعيين البيانات إلى الوضع الافتراضي
   // ============================================================
   resetToDefaults: () => {
     localStorage.clear();
