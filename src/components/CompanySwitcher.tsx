@@ -32,11 +32,7 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
 
   const isAr = lang === 'ar';
 
-  const activeCompany = companies.find(c => c.id === activeCompanyId) || (
-    activeCompanyId === 'all'
-      ? { id: 'all', name: isAr ? 'جميع الشركات (مجمّع)' : 'All Companies Combined', code: 'ALL' } as Company
-      : companies[0]
-  );
+  const activeCompany = companies.find(c => c.id === activeCompanyId) || companies[0];
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -97,9 +93,13 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
     const companyName = companies.find(c => c.id === compDeleteId)?.name || 'هذه الشركة';
     if (!window.confirm(isAr ? `هل أنت متأكد من حذف ${companyName} وجميع بياناتها؟` : `Are you sure you want to delete ${companyName} and all its data?`)) return;
     onDeleteCompany(compDeleteId);
-    // بعد الحذف، نغلق القائمة المنسدلة
     setIsOpen(false);
   };
+
+  // إذا لم تكن هناك شركات، لا نعرض الزر
+  if (companies.length === 0) {
+    return null;
+  }
 
   return (
     <div className="relative inline-block text-right" ref={dropdownRef}>
@@ -153,36 +153,7 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
           </div>
 
           <div className="max-h-72 overflow-y-auto p-2 space-y-1">
-            <button
-              onClick={() => {
-                onSelectCompany('all');
-                setIsOpen(false);
-              }}
-              className={`w-full text-right p-2.5 rounded-xl border transition flex items-center justify-between group ${
-                activeCompanyId === 'all'
-                  ? 'bg-blue-50 border-blue-400 text-blue-950 dark:bg-blue-950/40 dark:border-blue-500/50 dark:text-white'
-                  : 'bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:border-slate-800/60 dark:hover:bg-slate-800/50 dark:text-gray-300'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  <Layers className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-gray-200">
-                    {isAr ? 'جميع الشركات (عرض مجمّع)' : 'All Companies (Aggregated)'}
-                  </div>
-                  <div className="text-[10px] text-slate-500 dark:text-gray-400 mt-0.5">
-                    {isAr ? 'إحصائيات وتقارير كافة الأساطيل والشركات' : 'Combined dashboard across all fleets'}
-                  </div>
-                </div>
-              </div>
-              {activeCompanyId === 'all' && (
-                <Check className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-              )}
-            </button>
-
-            <div className="my-1.5 border-t border-slate-200 dark:border-slate-800/60" />
+            {/* 🔧 تم إزالة خيار "جميع الشركات" */}
 
             {companies.map(comp => {
               const compVehicles = vehicles.filter(v => (v.companyId || 'comp-1') === comp.id);
@@ -237,7 +208,6 @@ export const CompanySwitcher: React.FC<CompanySwitcherProps> = ({
                     )}
                   </button>
                   
-                  {/* زر حذف الشركة (يظهر فقط عند التمرير) */}
                   {!isCurrent && companies.length > 1 && (
                     <button
                       onClick={() => handleDeleteCompany(comp.id)}

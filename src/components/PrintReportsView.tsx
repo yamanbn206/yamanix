@@ -181,7 +181,22 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
     });
   }, [vehicles, selectedVehicleId, selectedDriverId]);
 
-  const selectedSession = filteredCheckouts.find(c => c.id === selectedSessionId) || checkouts.find(c => c.id === selectedSessionId) || activeReceiptSession || filteredCheckouts[0] || checkouts[0];
+  // تحديد الجلسة المختارة للطباعة
+  const selectedSession = useMemo(() => {
+    // أولاً: الجلسة النشطة من props
+    if (activeReceiptSession) return activeReceiptSession;
+    // ثانياً: البحث في checkouts المصفاة
+    const found = filteredCheckouts.find(c => c.id === selectedSessionId);
+    if (found) return found;
+    // ثالثاً: البحث في جميع checkouts
+    const allFound = checkouts.find(c => c.id === selectedSessionId);
+    if (allFound) return allFound;
+    // رابعاً: أول جلسة في المصفاة
+    if (filteredCheckouts.length > 0) return filteredCheckouts[0];
+    // خامساً: أول جلسة في الكل
+    if (checkouts.length > 0) return checkouts[0];
+    return null;
+  }, [activeReceiptSession, selectedSessionId, filteredCheckouts, checkouts]);
 
   const handleExportCSV = () => {
     if (reportType === 'fleet_summary') exportVehiclesToCSV(filteredVehicles, drivers);
@@ -313,6 +328,36 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* عرض بيانات الإعادة (Return Data) إذا كانت متوفرة */}
+              {selectedSession.status === 'completed' && selectedSession.returnTime && (
+                <div className="pt-2 border-t border-blue-200 mt-2">
+                  <p className="font-bold text-blue-800 text-xs">Return Information:</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs mt-1">
+                    <div>
+                      <span className="text-slate-500">Return Time:</span>
+                      <span className="font-mono block">{new Date(selectedSession.returnTime).toLocaleString('en-US')}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Return Odometer:</span>
+                      <span className="font-mono font-bold text-blue-600 block">{(selectedSession.returnOdometer ?? 0).toLocaleString()} km</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Fuel Level:</span>
+                      <span className="font-mono block">{selectedSession.returnFuelLevel}</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Distance Driven:</span>
+                      <span className="font-mono font-bold text-emerald-600 block">
+                        {((selectedSession.returnOdometer || 0) - (selectedSession.checkoutOdometer || 0)).toLocaleString()} km
+                      </span>
+                    </div>
+                  </div>
+                  {selectedSession.returnNotes && (
+                    <p className="text-xs text-slate-600 mt-1"><strong>Return Notes:</strong> {selectedSession.returnNotes}</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-6 pt-6 border-t border-slate-300 text-xs">
@@ -327,11 +372,13 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
               </div>
 
               <div className="text-center space-y-2 border p-3 rounded-xl">
-                <p className="font-bold text-slate-900">Fleet Operations Manager Authorization:</p>
+                <p className="font-bold text-slate-900">Return Signature:</p>
                 {selectedSession.returnSignature ? (
                   <img src={selectedSession.returnSignature} alt="Return Signature" className="max-h-16 mx-auto object-contain" />
+                ) : selectedSession.status === 'completed' ? (
+                  <div className="h-12 flex items-center justify-center text-slate-400 italic">Returned</div>
                 ) : (
-                  <div className="h-12 flex items-center justify-center text-slate-400 italic">Approved & Handed Over</div>
+                  <div className="h-12 flex items-center justify-center text-slate-400 italic">Pending</div>
                 )}
                 <p className="text-[10px] text-slate-500">Official Fleet Records Validation</p>
               </div>
@@ -646,18 +693,34 @@ export const PrintReportsView: React.FC<PrintReportsViewProps> = ({
             <span className="font-bold text-blue-900 dark:text-blue-200 flex items-center gap-2">
               <FileText className="w-4 h-4 text-blue-600" /> Select Handover Receipt Session:
             </span>
-            <select value={selectedSessionId} onChange={e => setSelectedSessionId(e.target.value)} className="px-3 py-2 border rounded-xl bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700 font-bold text-xs w-full sm:w-auto">
+            <select 
+              value={selectedSessionId} 
+              onChange={e => setSelectedSessionId(e.target.value)}
+              className="px-3 py-2 border rounded-xl bg-white dark:bg-slate-800 border-blue-300 dark:border-blue-700 font-bold text-xs w-full sm:w-auto"
+            >
               {checkouts.map(c => {
                 const v = vehicles.find(veh => veh.id === c.vehicleId);
                 const d = drivers.find(drv => drv.id === c.driverId);
-                return <option key={c.id} value={c.id}>Receipt #{c.id} - {v?.make} {v?.plateNumber} ({d?.name})</option>;
+                return (
+                  <option key={c.id} value={c.id}>
+                    Receipt #{c.id} - {v?.make} {v?.plateNumber} ({d?.name}) {c.status === 'completed' ? '✓ Completed' : '⏳ Active'}
+                  </option>
+                );
               })}
             </select>
+            {onClearReceiptSession && (
+              <button
+                onClick={onClearReceiptSession}
+                className="text-xs text-rose-500 hover:text-rose-700 font-bold"
+              >
+                ✕ Clear
+              </button>
+            )}
           </div>
         )}
       </div>
 
-      {/* ===== محتوى التقرير (يظهر في الطباعة) ===== */}
+      {/* محتوى التقرير الذي سيظهر في الطباعة */}
       <div className="bg-slate-100 dark:bg-slate-950 p-6 rounded-2xl border border-slate-200 dark:border-slate-800">
         {renderReportContent()}
       </div>

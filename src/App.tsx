@@ -80,12 +80,14 @@ export default function App() {
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // ===== بيانات التطبيق =====
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [activeCompanyId, setActiveCompanyIdState] = useState<string>(() => {
+  // 🔧 تغيير القيمة الافتراضية إلى null بدلاً من 'all'
+  const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(() => {
     const saved = localStorage.getItem('fleet_active_company');
-    return saved || 'all';
+    return saved && saved !== 'all' ? saved : null;
   });
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -97,7 +99,7 @@ export default function App() {
   const [settings, setSettings] = useState<CompanySettings>(() => storage.getSettings());
   const [documents, setDocuments] = useState<CompanyDocument[]>([]);
   const [receiptSession, setReceiptSession] = useState<CheckoutSession | null>(null);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(true);
 
   // ============================================================
   // جميع الـ Hooks في الأعلى (قبل أي return شرطي)
@@ -124,6 +126,7 @@ export default function App() {
             setSession(null);
             setProfile(null);
             setLoading(false);
+            setAuthError('جلسة غير صالحة، يرجى تسجيل الدخول مرة أخرى');
             return;
           }
         }
@@ -170,37 +173,14 @@ export default function App() {
   }, [session]);
 
   // ============================================================
-  // تحميل البيانات
+  // تحميل البيانات - من Supabase فقط
   // ============================================================
   useEffect(() => {
     if (!session) return;
 
     const loadData = async () => {
       try {
-        // تحميل من localStorage أولاً
-        const localCompanies = JSON.parse(localStorage.getItem('fleet_app_companies_v1') || '[]');
-        const localVehicles = JSON.parse(localStorage.getItem('fleet_app_vehicles_v1') || '[]');
-        const localDrivers = JSON.parse(localStorage.getItem('fleet_app_drivers_v1') || '[]');
-        const localGarages = JSON.parse(localStorage.getItem('fleet_app_garages_v1') || '[]');
-        const localMaintenance = JSON.parse(localStorage.getItem('fleet_app_maintenance_v1') || '[]');
-        const localFuel = JSON.parse(localStorage.getItem('fleet_app_fuel_v1') || '[]');
-        const localExpenses = JSON.parse(localStorage.getItem('fleet_app_expenses_v1') || '[]');
-        const localCheckouts = JSON.parse(localStorage.getItem('fleet_app_checkouts_v1') || '[]');
-        const localDocuments = JSON.parse(localStorage.getItem('fleet_app_documents_v1') || '[]');
-
-        if (localVehicles.length > 0 && isInitialLoad) {
-          setCompanies(localCompanies.length > 0 ? localCompanies : []);
-          setVehicles(localVehicles);
-          setDrivers(localDrivers);
-          setGarages(localGarages);
-          setMaintenance(localMaintenance);
-          setFuel(localFuel);
-          setExpenses(localExpenses);
-          setCheckouts(localCheckouts);
-          setDocuments(localDocuments);
-        }
-
-        // تحميل من Supabase
+        setIsDataLoading(true);
         const [companiesData, vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
           storage.getCompanies(),
           storage.getVehicles(),
@@ -213,23 +193,75 @@ export default function App() {
           storage.getDocuments()
         ]);
 
-        if (vehiclesData && vehiclesData.length > 0) setVehicles(vehiclesData);
-        if (driversData && driversData.length > 0) setDrivers(driversData);
-        if (garagesData && garagesData.length > 0) setGarages(garagesData);
-        if (maintenanceData && maintenanceData.length > 0) setMaintenance(maintenanceData);
-        if (fuelData && fuelData.length > 0) setFuel(fuelData);
-        if (expensesData && expensesData.length > 0) setExpenses(expensesData);
-        if (checkoutsData && checkoutsData.length > 0) setCheckouts(checkoutsData);
-        if (documentsData && documentsData.length > 0) setDocuments(documentsData);
-        if (companiesData && companiesData.length > 0) setCompanies(companiesData);
-
-        setIsInitialLoad(false);
+        setCompanies(Array.isArray(companiesData) ? companiesData : []);
+        setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
+        setDrivers(Array.isArray(driversData) ? driversData : []);
+        setGarages(Array.isArray(garagesData) ? garagesData : []);
+        setMaintenance(Array.isArray(maintenanceData) ? maintenanceData : []);
+        setFuel(Array.isArray(fuelData) ? fuelData : []);
+        setExpenses(Array.isArray(expensesData) ? expensesData : []);
+        setCheckouts(Array.isArray(checkoutsData) ? checkoutsData : []);
+        setDocuments(Array.isArray(documentsData) ? documentsData : []);
+        setIsDataLoading(false);
       } catch (error) {
-        console.error('Failed to load data:', error);
-        setTimeout(loadData, 5000);
+        console.error('Failed to load data from Supabase:', error);
+        try {
+          const localVehicles = JSON.parse(localStorage.getItem('fleet_app_vehicles_v1') || '[]');
+          const localDrivers = JSON.parse(localStorage.getItem('fleet_app_drivers_v1') || '[]');
+          const localMaintenance = JSON.parse(localStorage.getItem('fleet_app_maintenance_v1') || '[]');
+          const localCheckouts = JSON.parse(localStorage.getItem('fleet_app_checkouts_v1') || '[]');
+          
+          if (localVehicles.length > 0) setVehicles(localVehicles);
+          if (localDrivers.length > 0) setDrivers(localDrivers);
+          if (localMaintenance.length > 0) setMaintenance(localMaintenance);
+          if (localCheckouts.length > 0) setCheckouts(localCheckouts);
+        } catch (e) {
+          console.error('Failed to load from localStorage fallback:', e);
+        }
+        setIsDataLoading(false);
       }
     };
     loadData();
+  }, [session]);
+
+  // ============================================================
+  // 🔧 تعيين الشركة الافتراضية إذا لم تكن محددة
+  // ============================================================
+  useEffect(() => {
+    if (companies.length > 0 && !activeCompanyId) {
+      // إذا لم تكن هناك شركة نشطة، اختر الأولى
+      const firstCompanyId = companies[0].id;
+      setActiveCompanyIdState(firstCompanyId);
+      localStorage.setItem('fleet_active_company', firstCompanyId);
+    }
+  }, [companies, activeCompanyId]);
+
+  // ============================================================
+  // استماع Realtime لتحديث checkout_sessions تلقائياً
+  // ============================================================
+  useEffect(() => {
+    if (!session) return;
+
+    const channel = supabase
+      .channel('checkout_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'checkout_sessions' },
+        async () => {
+          console.log('🔄 Checkout session changed, reloading...');
+          try {
+            const data = await storage.getCheckoutSessions();
+            setCheckouts(data);
+          } catch (err) {
+            console.error('Failed to reload checkouts:', err);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [session]);
 
   // ============================================================
@@ -242,19 +274,36 @@ export default function App() {
   };
 
   const handleAddCompany = async (newComp: Company) => {
-    const updated = [...companies, newComp];
-    setCompanies(updated);
-    await storage.saveCompanies(updated);
+    try {
+      const updated = [...companies, newComp];
+      setCompanies(updated);
+      await storage.saveCompanies(updated);
+      // إذا لم تكن هناك شركة نشطة، اختر الجديدة
+      if (!activeCompanyId) {
+        handleSelectCompany(newComp.id);
+      }
+    } catch (error) {
+      alert(isAr ? 'فشل إضافة الشركة' : 'Failed to add company');
+    }
   };
 
   const handleDeleteCompany = async (compDeleteId: string) => {
     if (!confirm(lang === 'ar' ? 'هل أنت متأكد من حذف هذه الشركة وجميع بياناتها؟' : 'Are you sure you want to delete this company and all its data?')) return;
-    const updated = companies.filter(c => c.id !== compDeleteId);
-    setCompanies(updated);
-    await storage.saveCompanies(updated);
-    if (activeCompanyId === compDeleteId) {
-      const nextId = updated.length > 0 ? updated[0].id : 'all';
-      handleSelectCompany(nextId);
+    try {
+      const updated = companies.filter(c => c.id !== compDeleteId);
+      setCompanies(updated);
+      await storage.saveCompanies(updated);
+      if (activeCompanyId === compDeleteId) {
+        const nextId = updated.length > 0 ? updated[0].id : null;
+        if (nextId) {
+          handleSelectCompany(nextId);
+        } else {
+          setActiveCompanyIdState(null);
+          localStorage.removeItem('fleet_active_company');
+        }
+      }
+    } catch (error) {
+      alert(isAr ? 'فشل حذف الشركة' : 'Failed to delete company');
     }
   };
 
@@ -262,18 +311,19 @@ export default function App() {
   // إعدادات الشركة الحالية
   // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
-    if (activeCompanyId === 'all') {
+    if (!activeCompanyId) {
+      // إذا لم تكن هناك شركة نشطة، استخدم الإعدادات الافتراضية
       return {
-        companyName: settings.companyName || (lang === 'ar' ? 'مجموعة الشركات المجمّعة' : 'Combined Corporate Group'),
-        tagline: settings.tagline || (lang === 'ar' ? 'عرض شامِل ومجمّع لكافة الشركات والبيانات' : 'Combined overview across all registered companies'),
-        logoUrl: settings.logoUrl || DEFAULT_LOGO_URL,
-        phone: settings.phone || '+966 50 123 4567',
-        email: settings.email || 'fleet@yamanix.com',
-        address: settings.address || (lang === 'ar' ? 'المملكة العربية السعودية' : 'Saudi Arabia'),
-        commercialRegNumber: settings.commercialRegNumber || 'CR-MULTITENANT',
-        printHeaderNote: settings.printHeaderNote || 'مستند مجمّع صادر عن نظام إدارة الأسطول الموحد',
-        printFooterNote: settings.printFooterNote || 'نظام إدارة الأسطول والشركات المتعددة',
-        currency: settings.currency || 'SAR'
+        companyName: lang === 'ar' ? 'الرجاء اختيار شركة' : 'Please select a company',
+        tagline: '',
+        logoUrl: DEFAULT_LOGO_URL,
+        phone: '',
+        email: '',
+        address: '',
+        commercialRegNumber: '',
+        printHeaderNote: '',
+        printFooterNote: '',
+        currency: 'SAR'
       };
     }
     const comp = companies.find(c => c.id === activeCompanyId);
@@ -287,8 +337,8 @@ export default function App() {
         email: comp.email || settings.email,
         address: comp.address || settings.address,
         commercialRegNumber: comp.commercialRegNumber || settings.commercialRegNumber,
-        printHeaderNote: settings.printHeaderNote || comp.printHeaderNote,
-        printFooterNote: settings.printFooterNote || comp.printFooterNote,
+        printHeaderNote: settings.printHeaderNote,
+        printFooterNote: settings.printFooterNote,
         currency: comp.currency || settings.currency || 'SAR'
       };
     }
@@ -296,53 +346,45 @@ export default function App() {
   }, [activeCompanyId, companies, settings, lang]);
 
   // ============================================================
-  // تصفية البيانات
+  // تصفية البيانات (لشركة واحدة فقط)
   // ============================================================
   const filteredVehicles = useMemo(() => {
-    if (!Array.isArray(vehicles)) return [];
-    if (activeCompanyId === 'all') return vehicles;
+    if (!Array.isArray(vehicles) || !activeCompanyId) return [];
     return vehicles.filter(v => (v.companyId || 'comp-1') === activeCompanyId);
   }, [vehicles, activeCompanyId]);
 
   const filteredDrivers = useMemo(() => {
-    if (!Array.isArray(drivers)) return [];
-    if (activeCompanyId === 'all') return drivers;
+    if (!Array.isArray(drivers) || !activeCompanyId) return [];
     return drivers.filter(d => (d.companyId || 'comp-1') === activeCompanyId);
   }, [drivers, activeCompanyId]);
 
   const filteredGarages = useMemo(() => {
-    if (!Array.isArray(garages)) return [];
-    if (activeCompanyId === 'all') return garages;
-    return garages.filter(g => !g.companyId || g.companyId === activeCompanyId);
+    if (!Array.isArray(garages) || !activeCompanyId) return [];
+    return garages.filter(g => (g.companyId || 'comp-1') === activeCompanyId);
   }, [garages, activeCompanyId]);
 
   const filteredMaintenance = useMemo(() => {
-    if (!Array.isArray(maintenance)) return [];
-    if (activeCompanyId === 'all') return maintenance;
+    if (!Array.isArray(maintenance) || !activeCompanyId) return [];
     return maintenance.filter(m => (m.companyId || 'comp-1') === activeCompanyId);
   }, [maintenance, activeCompanyId]);
 
   const filteredFuel = useMemo(() => {
-    if (!Array.isArray(fuel)) return [];
-    if (activeCompanyId === 'all') return fuel;
+    if (!Array.isArray(fuel) || !activeCompanyId) return [];
     return fuel.filter(f => (f.companyId || 'comp-1') === activeCompanyId);
   }, [fuel, activeCompanyId]);
 
   const filteredExpenses = useMemo(() => {
-    if (!Array.isArray(expenses)) return [];
-    if (activeCompanyId === 'all') return expenses;
+    if (!Array.isArray(expenses) || !activeCompanyId) return [];
     return expenses.filter(e => (e.companyId || 'comp-1') === activeCompanyId);
   }, [expenses, activeCompanyId]);
 
   const filteredCheckouts = useMemo(() => {
-    if (!Array.isArray(checkouts)) return [];
-    if (activeCompanyId === 'all') return checkouts;
+    if (!Array.isArray(checkouts) || !activeCompanyId) return [];
     return checkouts.filter(c => (c.companyId || 'comp-1') === activeCompanyId);
   }, [checkouts, activeCompanyId]);
 
   const filteredDocuments = useMemo(() => {
-    if (!Array.isArray(documents)) return [];
-    if (activeCompanyId === 'all') return documents;
+    if (!Array.isArray(documents) || !activeCompanyId) return [];
     return documents.filter(doc => (doc.companyId || 'comp-1') === activeCompanyId);
   }, [documents, activeCompanyId]);
 
@@ -386,7 +428,7 @@ export default function App() {
   }, [filteredVehicles, filteredDrivers]);
 
   // ============================================================
-  // دوال الحفظ والحذف
+  // دوال الحفظ والحذف مع معالجة الأخطاء
   // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
@@ -396,210 +438,317 @@ export default function App() {
     return profile?.permissions?.[module]?.[action] === true;
   };
 
+  const showError = (message: string) => {
+    alert(isAr ? `❌ خطأ: ${message}` : `❌ Error: ${message}`);
+  };
+
+  const showSuccess = (message: string) => {
+    alert(isAr ? `✅ ${message}` : `✅ ${message}`);
+  };
+
+  const refreshCheckouts = async () => {
+    try {
+      const data = await storage.getCheckoutSessions();
+      setCheckouts(data);
+    } catch (err) {
+      console.error('Failed to refresh checkouts:', err);
+    }
+  };
+
   // ===== VEHICLES =====
   const handleSaveVehicle = async (v: Vehicle) => {
     if (!hasPermission('vehicles', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سيارات' : 'You do not have permission to add vehicles');
+      showError(isAr ? 'ليس لديك صلاحية لإضافة سيارات' : 'You do not have permission to add vehicles');
       return;
     }
-    const compId = v.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
-    const updatedVehicle = { 
-      ...v, 
-      companyId: compId,
-      created_by: getCurrentUserId(),
-      updated_by: getCurrentUserId()
-    };
-    const updated = vehicles.some(existing => existing.id === v.id)
-      ? vehicles.map(existing => existing.id === v.id ? updatedVehicle : existing)
-      : [updatedVehicle, ...vehicles];
-    setVehicles(updated);
-    await storage.saveVehicles(updated);
+    try {
+      // 🔧 استخدام activeCompanyId بدلاً من 'comp-1' الافتراضي
+      const compId = v.companyId || activeCompanyId || (companies[0]?.id || 'comp-1');
+      const updatedVehicle = { 
+        ...v, 
+        companyId: compId,
+        created_by: getCurrentUserId(),
+        updated_by: getCurrentUserId()
+      };
+      const updated = vehicles.some(existing => existing.id === v.id)
+        ? vehicles.map(existing => existing.id === v.id ? updatedVehicle : existing)
+        : [updatedVehicle, ...vehicles];
+      setVehicles(updated);
+      await storage.saveVehicles(updated);
+      showSuccess(isAr ? 'تم حفظ السيارة بنجاح' : 'Vehicle saved successfully');
+    } catch (error) {
+      showError(isAr ? 'فشل حفظ السيارة' : 'Failed to save vehicle');
+      const reloadData = await storage.getVehicles();
+      setVehicles(reloadData);
+    }
   };
 
   const handleDeleteVehicle = async (id: string) => {
     if (!hasPermission('vehicles', 'delete')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف السيارات' : 'You do not have permission to delete vehicles');
+      showError(isAr ? 'ليس لديك صلاحية لحذف السيارات' : 'You do not have permission to delete vehicles');
       return;
     }
     try {
-      await storage.deleteVehicle(id);
       setVehicles(prev => prev.filter(v => v.id !== id));
+      await storage.deleteVehicle(id);
+      showSuccess(isAr ? 'تم حذف السيارة بنجاح' : 'Vehicle deleted successfully');
     } catch (error) {
-      alert('Failed to delete vehicle');
+      showError(isAr ? 'فشل حذف السيارة' : 'Failed to delete vehicle');
+      const reloadData = await storage.getVehicles();
+      setVehicles(reloadData);
     }
   };
 
   // ===== DRIVERS =====
   const handleSaveDriver = async (d: Driver) => {
     if (!hasPermission('drivers', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سائقين' : 'You do not have permission to add drivers');
+      showError(isAr ? 'ليس لديك صلاحية لإضافة سائقين' : 'You do not have permission to add drivers');
       return;
     }
-    const compId = d.companyId || (activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId);
-    const updatedDriver = { 
-      ...d, 
-      companyId: compId,
-      created_by: getCurrentUserId(),
-      updated_by: getCurrentUserId()
-    };
-    const updated = drivers.some(existing => existing.id === d.id)
-      ? drivers.map(existing => existing.id === d.id ? updatedDriver : existing)
-      : [updatedDriver, ...drivers];
-    setDrivers(updated);
-    await storage.saveDrivers(updated);
+    try {
+      const compId = d.companyId || activeCompanyId || (companies[0]?.id || 'comp-1');
+      const updatedDriver = { 
+        ...d, 
+        companyId: compId,
+        created_by: getCurrentUserId(),
+        updated_by: getCurrentUserId()
+      };
+      const updated = drivers.some(existing => existing.id === d.id)
+        ? drivers.map(existing => existing.id === d.id ? updatedDriver : existing)
+        : [updatedDriver, ...drivers];
+      setDrivers(updated);
+      await storage.saveDrivers(updated);
+      showSuccess(isAr ? 'تم حفظ السائق بنجاح' : 'Driver saved successfully');
+    } catch (error) {
+      showError(isAr ? 'فشل حفظ السائق' : 'Failed to save driver');
+      const reloadData = await storage.getDrivers();
+      setDrivers(reloadData);
+    }
   };
 
   const handleDeleteDriver = async (id: string) => {
     if (!hasPermission('drivers', 'delete')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف سائقين' : 'You do not have permission to delete drivers');
+      showError(isAr ? 'ليس لديك صلاحية لحذف سائقين' : 'You do not have permission to delete drivers');
       return;
     }
     try {
-      await storage.deleteDriver(id);
       setDrivers(prev => prev.filter(d => d.id !== id));
+      await storage.deleteDriver(id);
+      showSuccess(isAr ? 'تم حذف السائق بنجاح' : 'Driver deleted successfully');
     } catch (error) {
-      alert('Failed to delete driver');
+      showError(isAr ? 'فشل حذف السائق' : 'Failed to delete driver');
+      const reloadData = await storage.getDrivers();
+      setDrivers(reloadData);
     }
   };
 
   // ===== MAINTENANCE =====
   const handleSaveMaintenance = async (record: MaintenanceRecord) => {
     if (!hasPermission('maintenance', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سجلات صيانة' : 'You do not have permission to add maintenance records');
+      showError(isAr ? 'ليس لديك صلاحية لإضافة سجلات صيانة' : 'You do not have permission to add maintenance records');
       return;
     }
-    const updated = [record, ...maintenance];
-    setMaintenance(updated);
-    await storage.saveMaintenanceRecords(updated);
+    try {
+      const compId = record.companyId || activeCompanyId || (companies[0]?.id || 'comp-1');
+      const updatedRecord = { ...record, companyId: compId };
+      const updated = [updatedRecord, ...maintenance];
+      setMaintenance(updated);
+      await storage.saveMaintenanceRecords(updated);
+      showSuccess(isAr ? 'تم حفظ سجل الصيانة بنجاح' : 'Maintenance record saved successfully');
+    } catch (error) {
+      showError(isAr ? 'فشل حفظ سجل الصيانة' : 'Failed to save maintenance record');
+      const reloadData = await storage.getMaintenanceRecords();
+      setMaintenance(reloadData);
+    }
   };
 
   const handleDeleteMaintenance = async (id: string) => {
     if (!hasPermission('maintenance', 'delete')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف سجلات الصيانة' : 'You do not have permission to delete maintenance records');
+      showError(isAr ? 'ليس لديك صلاحية لحذف سجلات الصيانة' : 'You do not have permission to delete maintenance records');
       return;
     }
     try {
-      await storage.deleteMaintenanceRecord(id);
       setMaintenance(prev => prev.filter(m => m.id !== id));
+      await storage.deleteMaintenanceRecord(id);
+      showSuccess(isAr ? 'تم حذف سجل الصيانة بنجاح' : 'Maintenance record deleted successfully');
     } catch (error) {
-      alert('Failed to delete maintenance record');
+      showError(isAr ? 'فشل حذف سجل الصيانة' : 'Failed to delete maintenance record');
+      const reloadData = await storage.getMaintenanceRecords();
+      setMaintenance(reloadData);
     }
   };
 
   // ===== GARAGES =====
   const handleSaveGarage = async (g: Garage) => {
     if (!hasPermission('maintenance', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة كراجات' : 'You do not have permission to add garages');
+      showError(isAr ? 'ليس لديك صلاحية لإضافة كراجات' : 'You do not have permission to add garages');
       return;
     }
-    const updated = [g, ...garages];
-    setGarages(updated);
-    await storage.saveGarages(updated);
+    try {
+      const compId = g.companyId || activeCompanyId || (companies[0]?.id || 'comp-1');
+      const updatedGarage = { ...g, companyId: compId };
+      const updated = [updatedGarage, ...garages];
+      setGarages(updated);
+      await storage.saveGarages(updated);
+      showSuccess(isAr ? 'تم حفظ الكراج بنجاح' : 'Garage saved successfully');
+    } catch (error) {
+      showError(isAr ? 'فشل حفظ الكراج' : 'Failed to save garage');
+      const reloadData = await storage.getGarages();
+      setGarages(reloadData);
+    }
   };
 
   const handleDeleteGarage = async (id: string) => {
     if (!hasPermission('maintenance', 'delete')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف الكراجات' : 'You do not have permission to delete garages');
+      showError(isAr ? 'ليس لديك صلاحية لحذف الكراجات' : 'You do not have permission to delete garages');
       return;
     }
     try {
-      await storage.deleteGarage(id);
       setGarages(prev => prev.filter(g => g.id !== id));
+      await storage.deleteGarage(id);
+      showSuccess(isAr ? 'تم حذف الكراج بنجاح' : 'Garage deleted successfully');
     } catch (error) {
-      alert('Failed to delete garage');
+      showError(isAr ? 'فشل حذف الكراج' : 'Failed to delete garage');
+      const reloadData = await storage.getGarages();
+      setGarages(reloadData);
     }
   };
 
   // ===== FUEL =====
   const handleSaveFuel = async (f: FuelRecord) => {
     if (!hasPermission('fuel', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة سجلات وقود' : 'You do not have permission to add fuel records');
+      showError(isAr ? 'ليس لديك صلاحية لإضافة سجلات وقود' : 'You do not have permission to add fuel records');
       return;
     }
-    const updated = [f, ...fuel];
-    setFuel(updated);
-    await storage.saveFuelRecords(updated);
+    try {
+      const compId = f.companyId || activeCompanyId || (companies[0]?.id || 'comp-1');
+      const updatedFuel = { ...f, companyId: compId };
+      const updated = [updatedFuel, ...fuel];
+      setFuel(updated);
+      await storage.saveFuelRecords(updated);
+      showSuccess(isAr ? 'تم حفظ سجل الوقود بنجاح' : 'Fuel record saved successfully');
+    } catch (error) {
+      showError(isAr ? 'فشل حفظ سجل الوقود' : 'Failed to save fuel record');
+      const reloadData = await storage.getFuelRecords();
+      setFuel(reloadData);
+    }
   };
 
   const handleDeleteFuel = async (id: string) => {
     if (!hasPermission('fuel', 'delete')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف سجلات الوقود' : 'You do not have permission to delete fuel records');
+      showError(isAr ? 'ليس لديك صلاحية لحذف سجلات الوقود' : 'You do not have permission to delete fuel records');
       return;
     }
     try {
-      await storage.deleteFuelRecord(id);
       setFuel(prev => prev.filter(f => f.id !== id));
+      await storage.deleteFuelRecord(id);
+      showSuccess(isAr ? 'تم حذف سجل الوقود بنجاح' : 'Fuel record deleted successfully');
     } catch (error) {
-      alert('Failed to delete fuel record');
+      showError(isAr ? 'فشل حذف سجل الوقود' : 'Failed to delete fuel record');
+      const reloadData = await storage.getFuelRecords();
+      setFuel(reloadData);
     }
   };
 
   // ===== EXPENSES =====
   const handleSaveExpense = async (e: ExpenseRecord) => {
     if (!hasPermission('fuel', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة مصاريف' : 'You do not have permission to add expenses');
+      showError(isAr ? 'ليس لديك صلاحية لإضافة مصاريف' : 'You do not have permission to add expenses');
       return;
     }
-    const updated = [e, ...expenses];
-    setExpenses(updated);
-    await storage.saveExpenseRecords(updated);
+    try {
+      const compId = e.companyId || activeCompanyId || (companies[0]?.id || 'comp-1');
+      const updatedExpense = { ...e, companyId: compId };
+      const updated = [updatedExpense, ...expenses];
+      setExpenses(updated);
+      await storage.saveExpenseRecords(updated);
+      showSuccess(isAr ? 'تم حفظ المصروف بنجاح' : 'Expense record saved successfully');
+    } catch (error) {
+      showError(isAr ? 'فشل حفظ المصروف' : 'Failed to save expense record');
+      const reloadData = await storage.getExpenseRecords();
+      setExpenses(reloadData);
+    }
   };
 
   const handleDeleteExpense = async (id: string) => {
     if (!hasPermission('fuel', 'delete')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف المصاريف' : 'You do not have permission to delete expenses');
+      showError(isAr ? 'ليس لديك صلاحية لحذف المصاريف' : 'You do not have permission to delete expenses');
       return;
     }
     try {
-      await storage.deleteExpenseRecord(id);
       setExpenses(prev => prev.filter(e => e.id !== id));
+      await storage.deleteExpenseRecord(id);
+      showSuccess(isAr ? 'تم حذف المصروف بنجاح' : 'Expense record deleted successfully');
     } catch (error) {
-      alert('Failed to delete expense');
+      showError(isAr ? 'فشل حذف المصروف' : 'Failed to delete expense record');
+      const reloadData = await storage.getExpenseRecords();
+      setExpenses(reloadData);
     }
   };
 
   // ===== CHECKOUT =====
   const handleSaveCheckout = async (session: CheckoutSession) => {
     if (!hasPermission('checkout', 'add')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لإضافة جلسات استلام' : 'You do not have permission to add checkout sessions');
+      showError(isAr ? 'ليس لديك صلاحية لإضافة جلسات استلام' : 'You do not have permission to add checkout sessions');
       return;
     }
-    const updated = [session, ...checkouts];
-    setCheckouts(updated);
-    await storage.saveCheckoutSessions(updated);
+    try {
+      // 🔧 تعيين companyId من الشركة النشطة
+      const compId = session.companyId || activeCompanyId || (companies[0]?.id || 'comp-1');
+      const updatedSession = { ...session, companyId: compId };
+      const updated = [updatedSession, ...checkouts];
+      setCheckouts(updated);
+      await storage.saveCheckoutSessions(updated);
+      showSuccess(isAr ? 'تم حفظ جلسة الاستلام بنجاح' : 'Checkout session saved successfully');
+      await refreshCheckouts();
+    } catch (error) {
+      showError(isAr ? 'فشل حفظ جلسة الاستلام' : 'Failed to save checkout session');
+      const reloadData = await storage.getCheckoutSessions();
+      setCheckouts(reloadData);
+    }
   };
 
   const handleDeleteCheckout = async (id: string) => {
     if (!hasPermission('checkout', 'delete')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف جلسات الاستلام' : 'You do not have permission to delete checkout sessions');
+      showError(isAr ? 'ليس لديك صلاحية لحذف جلسات الاستلام' : 'You do not have permission to delete checkout sessions');
       return;
     }
     try {
-      await storage.deleteCheckoutSession(id);
       setCheckouts(prev => prev.filter(c => c.id !== id));
+      await storage.deleteCheckoutSession(id);
+      showSuccess(isAr ? 'تم حذف جلسة الاستلام بنجاح' : 'Checkout session deleted successfully');
+      await refreshCheckouts();
     } catch (error) {
-      alert('Failed to delete checkout session');
+      showError(isAr ? 'فشل حذف جلسة الاستلام' : 'Failed to delete checkout session');
+      const reloadData = await storage.getCheckoutSessions();
+      setCheckouts(reloadData);
     }
   };
 
   const handleReturnVehicle = async (sessionId: string, returnData: Partial<CheckoutSession>) => {
     if (!hasPermission('checkout', 'edit')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لتعديل جلسات الاستلام' : 'You do not have permission to edit checkout sessions');
+      showError(isAr ? 'ليس لديك صلاحية لتعديل جلسات الاستلام' : 'You do not have permission to edit checkout sessions');
       return;
     }
-    const updated = checkouts.map(c => c.id === sessionId ? { ...c, ...returnData } : c);
-    setCheckouts(updated);
-    await storage.saveCheckoutSessions(updated);
+    try {
+      const updated = checkouts.map(c => c.id === sessionId ? { ...c, ...returnData } : c);
+      setCheckouts(updated);
+      await storage.saveCheckoutSessions(updated);
+      showSuccess(isAr ? 'تم تحديث جلسة الاستلام بنجاح' : 'Checkout session updated successfully');
+      await refreshCheckouts();
+    } catch (error) {
+      showError(isAr ? 'فشل تحديث جلسة الاستلام' : 'Failed to update checkout session');
+      const reloadData = await storage.getCheckoutSessions();
+      setCheckouts(reloadData);
+    }
   };
 
   // ===== SETTINGS & DOCUMENTS =====
   const handleSaveSettings = (newSettings: CompanySettings) => {
-    // تحديث settings دائماً
     setSettings(newSettings);
     storage.saveSettings(newSettings);
 
-    // إذا كانت الشركة محددة، نقوم بتحديث companies أيضاً مع الحقول الجديدة
-    if (activeCompanyId !== 'all') {
+    if (activeCompanyId) {
       const targetCompId = activeCompanyId;
       const updatedCompanies = companies.map(c => {
         if (c.id === targetCompId) {
@@ -613,48 +762,47 @@ export default function App() {
             address: newSettings.address,
             commercialRegNumber: newSettings.commercialRegNumber,
             currency: newSettings.currency,
-            printHeaderNote: newSettings.printHeaderNote,
-            printFooterNote: newSettings.printFooterNote,
           };
         }
         return c;
       });
       setCompanies(updatedCompanies);
       storage.saveCompanies(updatedCompanies);
-    } else {
-      // في وضع "جميع الشركات"، نقوم بحفظ الإعدادات في storage فقط
-      // كما نقوم بتحديث جميع الشركات بالحقول الجديدة إذا أردت
-      const updatedCompanies = companies.map(c => ({
-        ...c,
-        printHeaderNote: newSettings.printHeaderNote,
-        printFooterNote: newSettings.printFooterNote,
-      }));
-      setCompanies(updatedCompanies);
-      storage.saveCompanies(updatedCompanies);
     }
+    showSuccess(isAr ? 'تم حفظ الإعدادات بنجاح' : 'Settings saved successfully');
   };
 
   const handleSaveDocuments = async (docs: CompanyDocument[]) => {
     if (!hasPermission('settings', 'edit')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لتعديل المستندات' : 'You do not have permission to edit documents');
+      showError(isAr ? 'ليس لديك صلاحية لتعديل المستندات' : 'You do not have permission to edit documents');
       return;
     }
-    const compId = activeCompanyId === 'all' ? (companies[0]?.id || 'comp-1') : activeCompanyId;
-    const docsWithComp = docs.map(d => ({ ...d, companyId: d.companyId || compId }));
-    setDocuments(docsWithComp);
-    await storage.saveDocuments(docsWithComp);
+    try {
+      const compId = activeCompanyId || (companies[0]?.id || 'comp-1');
+      const docsWithComp = docs.map(d => ({ ...d, companyId: d.companyId || compId }));
+      setDocuments(docsWithComp);
+      await storage.saveDocuments(docsWithComp);
+      showSuccess(isAr ? 'تم حفظ المستندات بنجاح' : 'Documents saved successfully');
+    } catch (error) {
+      showError(isAr ? 'فشل حفظ المستندات' : 'Failed to save documents');
+      const reloadData = await storage.getDocuments();
+      setDocuments(reloadData);
+    }
   };
 
   const handleDeleteDocument = async (id: string) => {
     if (!hasPermission('settings', 'delete')) {
-      alert(lang === 'ar' ? 'ليس لديك صلاحية لحذف المستندات' : 'You do not have permission to delete documents');
+      showError(isAr ? 'ليس لديك صلاحية لحذف المستندات' : 'You do not have permission to delete documents');
       return;
     }
     try {
-      await storage.deleteDocument(id);
       setDocuments(prev => prev.filter(d => d.id !== id));
+      await storage.deleteDocument(id);
+      showSuccess(isAr ? 'تم حذف المستند بنجاح' : 'Document deleted successfully');
     } catch (error) {
-      alert('Failed to delete document');
+      showError(isAr ? 'فشل حذف المستند' : 'Failed to delete document');
+      const reloadData = await storage.getDocuments();
+      setDocuments(reloadData);
     }
   };
 
@@ -696,7 +844,7 @@ export default function App() {
   // ============================================================
   // التحقق من حالة التحميل والمصادقة
   // ============================================================
-  if (loading) {
+  if (loading || isDataLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">{t('loading', lang)}</div>;
   }
 
@@ -711,6 +859,39 @@ export default function App() {
         copyrightText="جميع الحقوق محفوظة © 2026\nفريق YAMANIX TEAM & BAHAA NASIR"
       />
     );
+  }
+
+  // إذا لم تكن هناك شركة محددة ولا توجد شركات، أظهر رسالة
+  if (companies.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-xl text-center max-w-md">
+          <Building2 className="w-16 h-16 mx-auto text-blue-500 mb-4" />
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+            {isAr ? 'لا توجد شركات' : 'No Companies'}
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+            {isAr ? 'يرجى إضافة شركة أولاً من إعدادات الشركة.' : 'Please add a company first from Company Settings.'}
+          </p>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+          >
+            {isAr ? 'الذهاب للإعدادات' : 'Go to Settings'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // إذا لم تكن هناك شركة نشطة ولكن هناك شركات، اختر الأولى تلقائياً
+  if (!activeCompanyId && companies.length > 0) {
+    // هذا لن يحدث بسبب useEffect أعلاه، لكن كضمان
+    const firstId = companies[0].id;
+    setActiveCompanyIdState(firstId);
+    localStorage.setItem('fleet_active_company', firstId);
+    // نعيد التصيير بعد التحديث
+    return null;
   }
 
   // ============================================================
@@ -743,7 +924,7 @@ export default function App() {
             <div className="hidden sm:block border-s border-slate-200 dark:border-gray-800/80 ps-3 ms-1 flex-shrink-0">
               <CompanySwitcher
                 companies={companies}
-                activeCompanyId={activeCompanyId}
+                activeCompanyId={activeCompanyId || ''}
                 vehicles={vehicles}
                 drivers={drivers}
                 lang={lang}
@@ -868,13 +1049,27 @@ export default function App() {
             {activeTab === 'dashboard' && <DashboardView vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} settings={currentCompanySettings} onNavigateTab={setActiveTab} lang={lang} />}
             {activeTab === 'vehicles' && <VehiclesView vehicles={filteredVehicles} drivers={filteredDrivers} onSaveVehicle={handleSaveVehicle} onDeleteVehicle={handleDeleteVehicle} lang={lang} />}
             {activeTab === 'drivers' && <DriversView drivers={filteredDrivers} vehicles={filteredVehicles} onSaveDriver={handleSaveDriver} onDeleteDriver={handleDeleteDriver} lang={lang} />}
-            {activeTab === 'checkout' && <CheckoutHub vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} settings={currentCompanySettings} profile={profile} onSaveCheckout={handleSaveCheckout} onReturnVehicle={handleReturnVehicle} onDeleteCheckout={handleDeleteCheckout} onPrintReceipt={handlePrintReceipt} lang={lang} />}
+            {activeTab === 'checkout' && 
+              <CheckoutHub 
+                vehicles={filteredVehicles} 
+                drivers={filteredDrivers} 
+                checkouts={filteredCheckouts} 
+                settings={currentCompanySettings} 
+                profile={profile} 
+                onSaveCheckout={handleSaveCheckout} 
+                onReturnVehicle={handleReturnVehicle} 
+                onDeleteCheckout={handleDeleteCheckout} 
+                onPrintReceipt={handlePrintReceipt} 
+                lang={lang}
+                onRefresh={refreshCheckouts}
+              />
+            }
             {activeTab === 'maintenance' && <MaintenanceView maintenance={filteredMaintenance} vehicles={filteredVehicles} garages={filteredGarages} settings={currentCompanySettings} onSaveMaintenance={handleSaveMaintenance} onDeleteMaintenance={handleDeleteMaintenance} onSaveGarage={handleSaveGarage} onDeleteGarage={handleDeleteGarage} lang={lang} />}
             {activeTab === 'fuel' && <FuelExpensesView fuel={filteredFuel} expenses={filteredExpenses} vehicles={filteredVehicles} drivers={filteredDrivers} checkouts={filteredCheckouts} garages={filteredGarages} maintenance={filteredMaintenance} onSaveFuel={handleSaveFuel} onDeleteFuel={handleDeleteFuel} onSaveExpense={handleSaveExpense} onDeleteExpense={handleDeleteExpense} onSaveMaintenance={handleSaveMaintenance} onDeleteMaintenance={handleDeleteMaintenance} lang={lang} />}
             {activeTab === 'expiries' && <ExpiriesView vehicles={filteredVehicles} drivers={filteredDrivers} onSaveVehicle={handleSaveVehicle} lang={lang} />}
             {activeTab === 'reports' && <PrintReportsView settings={currentCompanySettings} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} activeReceiptSession={receiptSession} onClearReceiptSession={() => setReceiptSession(null)} onSaveSettings={handleSaveSettings} lang={lang} />}
             {activeTab === 'advisor' && <AIFleetAdvisor vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} settings={currentCompanySettings} onSaveVehicle={handleSaveVehicle} onNavigateTab={setActiveTab} lang={lang} />}
-            {activeTab === 'settings' && <CompanySettingsView settings={currentCompanySettings} documents={filteredDocuments} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} garages={filteredGarages} expenses={filteredExpenses} lang={lang} companies={companies} activeCompanyId={activeCompanyId} onSave={handleSaveSettings} onSaveDocuments={handleSaveDocuments} onDeleteDocument={handleDeleteDocument} onSelectCompany={handleSelectCompany} onAddCompany={handleAddCompany} onDeleteCompany={handleDeleteCompany} />}
+            {activeTab === 'settings' && <CompanySettingsView settings={currentCompanySettings} documents={filteredDocuments} vehicles={filteredVehicles} drivers={filteredDrivers} maintenance={filteredMaintenance} fuel={filteredFuel} checkouts={filteredCheckouts} garages={filteredGarages} expenses={filteredExpenses} lang={lang} companies={companies} activeCompanyId={activeCompanyId || ''} onSave={handleSaveSettings} onSaveDocuments={handleSaveDocuments} onDeleteDocument={handleDeleteDocument} onSelectCompany={handleSelectCompany} onAddCompany={handleAddCompany} onDeleteCompany={handleDeleteCompany} />}
             {activeTab === 'users' && profile?.role === 'admin' && (
               <UserManagement
                 profile={profile}

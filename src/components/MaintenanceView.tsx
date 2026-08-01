@@ -48,6 +48,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
   const [activeTab, setActiveTab] = useState<'records' | 'calendar' | 'garages'>('records');
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [showGarageModal, setShowGarageModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState<string | null>(new Date().toISOString().slice(0, 10));
@@ -62,7 +63,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
   const [formOdometer, setFormOdometer] = useState<number>(0);
 
   const [parts, setParts] = useState<SparePartItem[]>([
-    { id: '1', partName: 'Brake Pads', category: 'brakes', quantity: 1, unitCost: 200 }
+    { id: '1', partName: '', category: 'brakes', quantity: 1, unitCost: 0 }
   ]);
 
   const [garageForm, setGarageForm] = useState<Partial<Garage>>({
@@ -93,53 +94,95 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
     return partsTotal + Number(formLaborCost || 0);
   };
 
-  const handleCreateMaintenance = (e: React.FormEvent) => {
+  const handleCreateMaintenance = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    
     if (!formVehicleId || !formGarageId || !formDescription) {
       alert(isAr ? 'يرجى تحديد المركبة والورشة ووصف العطل' : 'Please select vehicle, garage, and provide a description');
       return;
     }
 
-    const total = calculateTotalCost();
+    setIsSubmitting(true);
 
-    const record: MaintenanceRecord = {
-      id: `m-${Date.now().toString().slice(-5)}`,
-      vehicleId: formVehicleId,
-      garageId: formGarageId,
-      date: formDate,
-      type: formType,
-      description: formDescription,
-      parts: parts.filter(p => p.partName.trim() !== ''),
-      laborCost: Number(formLaborCost || 0),
-      totalCost: total,
-      invoiceNumber: formInvoiceNumber || `INV-${Date.now().toString().slice(-4)}`,
-      odometerReading: Number(formOdometer || 0),
-      status: 'completed'
-    };
+    try {
+      const total = calculateTotalCost();
+      const id = `m-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 5)}`;
 
-    onSaveMaintenance(record);
-    setShowRecordModal(false);
+      const record: MaintenanceRecord = {
+        id: id,
+        vehicleId: formVehicleId,
+        garageId: formGarageId,
+        date: formDate,
+        type: formType,
+        description: formDescription,
+        parts: parts.filter(p => p.partName.trim() !== ''),
+        laborCost: Number(formLaborCost || 0),
+        totalCost: total,
+        invoiceNumber: formInvoiceNumber || `INV-${Date.now().toString().slice(-4)}`,
+        odometerReading: Number(formOdometer || 0),
+        status: 'completed'
+      };
+
+      // استدعاء دالة الحفظ من App
+      await onSaveMaintenance(record);
+      setShowRecordModal(false);
+      
+      // إعادة تعيين النموذج
+      setFormVehicleId('');
+      setFormGarageId('');
+      setFormDescription('');
+      setFormLaborCost(0);
+      setFormInvoiceNumber('');
+      setFormOdometer(0);
+      setParts([{ id: '1', partName: '', category: 'brakes', quantity: 1, unitCost: 0 }]);
+    } catch (error) {
+      alert(isAr ? 'فشل حفظ سجل الصيانة' : 'Failed to save maintenance record');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleCreateGarage = (e: React.FormEvent) => {
+  const handleCreateGarage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!garageForm.name || !garageForm.phone) {
       alert(isAr ? 'يرجى إدخال اسم الكراج ورقم الهاتف' : 'Please enter garage name and phone number');
       return;
     }
 
-    const newGarage: Garage = {
-      id: `g-${Date.now().toString().slice(-4)}`,
-      name: garageForm.name || '',
-      phone: garageForm.phone || '',
-      contactPerson: garageForm.contactPerson || '',
-      address: garageForm.address || '',
-      rating: 4.5,
-      specialty: garageForm.specialty || 'General'
-    };
+    try {
+      const newGarage: Garage = {
+        id: `g-${Date.now().toString().slice(-4)}`,
+        name: garageForm.name || '',
+        phone: garageForm.phone || '',
+        contactPerson: garageForm.contactPerson || '',
+        address: garageForm.address || '',
+        rating: 4.5,
+        specialty: garageForm.specialty || 'General'
+      };
 
-    onSaveGarage(newGarage);
-    setShowGarageModal(false);
+      await onSaveGarage(newGarage);
+      setShowGarageModal(false);
+      setGarageForm({
+        name: '',
+        phone: '',
+        contactPerson: '',
+        address: '',
+        specialty: 'General'
+      });
+    } catch (error) {
+      alert(isAr ? 'فشل حفظ الكراج' : 'Failed to save garage');
+    }
+  };
+
+  const handleDeleteMaintenanceRecord = async (id: string) => {
+    if (confirm(isAr ? 'هل أنت متأكد من حذف هذا السجل؟' : 'Are you sure you want to delete this record?')) {
+      try {
+        await onDeleteMaintenance(id);
+      } catch (error) {
+        alert(isAr ? 'فشل حذف السجل' : 'Failed to delete record');
+      }
+    }
   };
 
   const year = calendarDate.getFullYear();
@@ -234,79 +277,87 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
       {/* RECORDS TAB */}
       {activeTab === 'records' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            {maintenance.map(record => {
-              const vehicle = vehicles.find(v => v.id === record.vehicleId);
-              const garage = garages.find(g => g.id === record.garageId);
+          {maintenance.length === 0 ? (
+            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-12 text-center text-slate-500">
+              <Wrench className="w-12 h-12 mx-auto text-slate-400 opacity-60" />
+              <h3 className="text-lg font-bold mt-4">{isAr ? 'لا توجد سجلات صيانة' : 'No maintenance records'}</h3>
+              <p className="text-sm">{isAr ? 'قم بتسجيل أول فاتورة صيانة الآن' : 'Record your first maintenance invoice now'}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {maintenance.map(record => {
+                const vehicle = vehicles.find(v => v.id === record.vehicleId);
+                const garage = garages.find(g => g.id === record.garageId);
 
-              return (
-                <div 
-                  key={record.id}
-                  className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-4"
-                >
-                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b pb-3 border-slate-100 dark:border-slate-700">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-lg text-slate-900 dark:text-white">
-                          {vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'} ({vehicle?.plateNumber})
-                        </span>
-                        <span className="bg-rose-100 text-rose-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                          {record.type === 'breakdown' ? (isAr ? 'إصلاح عطل' : 'Breakdown') : record.type === 'periodic' ? (isAr ? 'صيانة دورية' : 'Periodic') : (isAr ? 'حادث/طوارئ' : 'Emergency')}
+                return (
+                  <div 
+                    key={record.id}
+                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm space-y-4"
+                  >
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b pb-3 border-slate-100 dark:border-slate-700">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-lg text-slate-900 dark:text-white">
+                            {vehicle ? `${vehicle.make} ${vehicle.model}` : 'Vehicle'} ({vehicle?.plateNumber})
+                          </span>
+                          <span className="bg-rose-100 text-rose-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                            {record.type === 'breakdown' ? (isAr ? 'إصلاح عطل' : 'Breakdown') : record.type === 'periodic' ? (isAr ? 'صيانة دورية' : 'Periodic') : (isAr ? 'حادث/طوارئ' : 'Emergency')}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {isAr ? 'الكراج:' : 'Garage:'} <strong className="text-slate-800 dark:text-slate-200">{garage?.name || 'External Workshop'}</strong> • 
+                          {isAr ? 'رقم الفاتورة:' : 'Invoice:'} <span className="font-mono">{record.invoiceNumber}</span> • 
+                          {isAr ? 'تاريخ:' : 'Date:'} <span className="font-mono">{record.date}</span>
+                        </p>
+                      </div>
+
+                      <div className="text-left">
+                        <span className="text-xs text-slate-400 block">{isAr ? 'التكلفة الإجمالية:' : 'Total Cost:'}</span>
+                        <span className="text-xl font-bold text-rose-600 font-mono">
+                          {formatCurrency(record.totalCost, settings?.currency, isAr ? 'ar' : 'en')}
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {isAr ? 'الكراج:' : 'Garage:'} <strong className="text-slate-800 dark:text-slate-200">{garage?.name || 'External Workshop'}</strong> • 
-                        {isAr ? 'رقم الفاتورة:' : 'Invoice:'} <span className="font-mono">{record.invoiceNumber}</span> • 
-                        {isAr ? 'تاريخ:' : 'Date:'} <span className="font-mono">{record.date}</span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                        {isAr ? 'وصف المشكلة / العمل المنجز:' : 'Work Description:'}
+                      </p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                        {record.description}
                       </p>
                     </div>
 
-                    <div className="text-left">
-                      <span className="text-xs text-slate-400 block">{isAr ? 'التكلفة الإجمالية:' : 'Total Cost:'}</span>
-                      <span className="text-xl font-bold text-rose-600 font-mono">
-                        {formatCurrency(record.totalCost, settings?.currency, isAr ? 'ar' : 'en')}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                      {isAr ? 'وصف المشكلة / العمل المنجز:' : 'Work Description:'}
-                    </p>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
-                      {record.description}
-                    </p>
-                  </div>
-
-                  {record.parts && record.parts.length > 0 && (
-                    <div className="bg-slate-50/70 dark:bg-slate-900/40 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700 space-y-2">
-                      <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{isAr ? 'القطع المستبدلة بهذه الصيانة:' : 'Replaced Parts:'}</p>
-                      <div className="flex flex-wrap gap-2">
-                        {record.parts.map((part, idx) => (
-                          <span 
-                            key={idx} 
-                            className="bg-white dark:bg-slate-800 border text-slate-800 dark:text-slate-200 px-3 py-1 rounded-lg text-xs font-medium shadow-xs"
-                          >
-                            {part.partName} ({part.quantity} {isAr ? 'قطعة' : 'pcs'}) - <strong className="text-blue-600 font-mono">{formatCurrency(part.unitCost * part.quantity, settings?.currency, isAr ? 'ar' : 'en')}</strong>
-                          </span>
-                        ))}
+                    {record.parts && record.parts.length > 0 && (
+                      <div className="bg-slate-50/70 dark:bg-slate-900/40 p-3 rounded-xl border border-slate-200/60 dark:border-slate-700 space-y-2">
+                        <p className="text-xs font-bold text-slate-700 dark:text-slate-300">{isAr ? 'القطع المستبدلة بهذه الصيانة:' : 'Replaced Parts:'}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {record.parts.map((part, idx) => (
+                            <span 
+                              key={idx} 
+                              className="bg-white dark:bg-slate-800 border text-slate-800 dark:text-slate-200 px-3 py-1 rounded-lg text-xs font-medium shadow-xs"
+                            >
+                              {part.partName} ({part.quantity} {isAr ? 'قطعة' : 'pcs'}) - <strong className="text-blue-600 font-mono">{formatCurrency(part.unitCost * part.quantity, settings?.currency, isAr ? 'ar' : 'en')}</strong>
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-                    <span>{isAr ? 'تكلفة أجرة اليد (المصنعية):' : 'Labor Cost:'} <strong className="text-slate-800 dark:text-slate-200 font-mono">{formatCurrency(record.laborCost, settings?.currency, isAr ? 'ar' : 'en')}</strong></span>
-                    <button
-                      onClick={() => onDeleteMaintenance(record.id)}
-                      className="text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> {isAr ? 'حذف الفاتورة' : 'Delete Record'}
-                    </button>
+                    <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                      <span>{isAr ? 'تكلفة أجرة اليد (المصنعية):' : 'Labor Cost:'} <strong className="text-slate-800 dark:text-slate-200 font-mono">{formatCurrency(record.laborCost, settings?.currency, isAr ? 'ar' : 'en')}</strong></span>
+                      <button
+                        onClick={() => handleDeleteMaintenanceRecord(record.id)}
+                        className="text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> {isAr ? 'حذف الفاتورة' : 'Delete Record'}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -523,7 +574,7 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
         </div>
       )}
 
-      {/* GARAGES TAB - مع زر حذف لكل كراج */}
+      {/* GARAGES TAB */}
       {activeTab === 'garages' && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {garages.map(garage => (
@@ -542,28 +593,27 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
                 <p><strong>{isAr ? 'العنوان:' : 'Address:'}</strong> {garage.address}</p>
               </div>
 
-              {/* زر الحذف */}
               <div className="flex items-center justify-between border-t pt-3 border-slate-100 dark:border-slate-700">
                 <span className="text-xs text-slate-500">ID: {garage.id.slice(0, 8)}</span>
-                <button
-                  onClick={() => {
-                    if (confirm(isAr ? `هل أنت متأكد من حذف الكراج (${garage.name})؟` : `Are you sure you want to delete ${garage.name}?`)) {
-                      if (onDeleteGarage) {
+                {onDeleteGarage && (
+                  <button
+                    onClick={() => {
+                      if (confirm(isAr ? `هل أنت متأكد من حذف الكراج (${garage.name})؟` : `Are you sure you want to delete ${garage.name}?`)) {
                         onDeleteGarage(garage.id);
                       }
-                    }
-                  }}
-                  className="text-xs text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> {isAr ? 'حذف' : 'Delete'}
-                </button>
+                    }}
+                    className="text-xs text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> {isAr ? 'حذف' : 'Delete'}
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* MODALS */}
+      {/* RECORD MODAL */}
       {showRecordModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 my-8 space-y-4">
@@ -654,13 +704,20 @@ export const MaintenanceView: React.FC<MaintenanceViewProps> = ({
 
               <div className="flex justify-end gap-3 pt-3">
                 <button type="button" onClick={() => setShowRecordModal(false)} className="px-4 py-2 border rounded-lg text-xs font-bold text-slate-600">{isAr ? 'إلغاء' : 'Cancel'}</button>
-                <button type="submit" className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm shadow transition">{isAr ? 'حفظ وتسجيل الفاتورة' : 'Save Invoice'}</button>
+                <button 
+                  type="submit" 
+                  disabled={isSubmitting}
+                  className={`px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm shadow transition ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {isSubmitting ? (isAr ? 'جاري الحفظ...' : 'Saving...') : (isAr ? 'حفظ وتسجيل الفاتورة' : 'Save Invoice')}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
+      {/* GARAGE MODAL */}
       {showGarageModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 space-y-4">

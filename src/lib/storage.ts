@@ -25,7 +25,7 @@ import {
 import { supabase } from './supabase';
 
 // ============================================================
-// مفاتيح التخزين المحلي
+// مفاتيح التخزين المحلي - تستخدم فقط للنسخ الاحتياطي
 // ============================================================
 const KEYS = {
   COMPANIES: 'fleet_app_companies_v1',
@@ -39,8 +39,6 @@ const KEYS = {
   CHECKOUTS: 'fleet_app_checkouts_v1',
   SETTINGS: 'fleet_app_settings_v1',
   DOCUMENTS: 'fleet_app_documents_v1',
-  PENDING_SYNC: 'fleet_app_pending_sync_v1',
-  LAST_SYNC_TIME: 'fleet_app_last_sync_time_v1',
 };
 
 // ============================================================
@@ -69,7 +67,7 @@ function toCamelCase(obj: any): any {
 }
 
 // ============================================================
-// دوال التخزين
+// دوال التخزين - تعمل مباشرة مع Supabase
 // ============================================================
 export const storage = {
 
@@ -77,35 +75,54 @@ export const storage = {
   getActiveCompanyId: (): string => localStorage.getItem(KEYS.ACTIVE_COMPANY_ID) || 'comp-1',
   setActiveCompanyId: (id: string) => localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, id),
 
-  // ===== COMPANIES =====
+  // ============================================================
+  // COMPANIES
+  // ============================================================
   getCompanies: async (): Promise<Company[]> => {
     try {
       const { data, error } = await supabase
         .from('companies')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
         const camelData = toCamelCase(data);
+        // تحديث localStorage كنسخة احتياطية فقط
         localStorage.setItem(KEYS.COMPANIES, JSON.stringify(camelData));
         return camelData;
       }
+      // إذا كانت قاعدة البيانات فارغة، استخدم البيانات الأولية واحفظها في Supabase
+      await storage.saveCompanies(initialCompanies);
+      return initialCompanies;
     } catch (e) {
-      console.warn('Supabase fetch failed, using localStorage backup:', e);
+      console.error('❌ Failed to fetch companies:', e);
+      // في حالة الفشل، حاول قراءة من localStorage كنسخة احتياطية
+      const local = localStorage.getItem(KEYS.COMPANIES);
+      if (local) {
+        try {
+          return JSON.parse(local);
+        } catch {
+          return initialCompanies;
+        }
+      }
+      return initialCompanies;
     }
-    const local = JSON.parse(localStorage.getItem(KEYS.COMPANIES) || JSON.stringify(initialCompanies));
-    return Array.isArray(local) ? local : initialCompanies;
   },
 
   saveCompanies: async (companies: Company[]) => {
     if (!Array.isArray(companies)) return;
-    localStorage.setItem(KEYS.COMPANIES, JSON.stringify(companies));
     try {
       const { error } = await supabase
         .from('companies')
-        .upsert(toSnakeCase(companies), { onConflict: 'id' });
-      if (error) console.error('❌ Sync companies to Supabase failed:', error);
+        .upsert(toSnakeCase(companies), { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
+      if (error) throw error;
+      localStorage.setItem(KEYS.COMPANIES, JSON.stringify(companies));
     } catch (e) {
-      console.error('❌ Sync companies error:', e);
+      console.error('❌ Failed to save companies:', e);
+      throw new Error('فشل حفظ الشركات في قاعدة البيانات');
     }
   },
 
@@ -118,16 +135,26 @@ export const storage = {
         .from('vehicles')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.VEHICLES, JSON.stringify(camelData));
         return camelData;
       }
+      await storage.saveVehicles(initialVehicles);
+      return initialVehicles;
     } catch (e) {
-      console.warn('Supabase fetch failed, using localStorage backup:', e);
+      console.error('❌ Failed to fetch vehicles:', e);
+      const local = localStorage.getItem(KEYS.VEHICLES);
+      if (local) {
+        try {
+          return JSON.parse(local);
+        } catch {
+          return initialVehicles;
+        }
+      }
+      return initialVehicles;
     }
-    const local = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || JSON.stringify(initialVehicles));
-    return Array.isArray(local) ? local : initialVehicles;
   },
 
   saveVehicles: async (vehicles: Vehicle[]) => {
@@ -137,7 +164,6 @@ export const storage = {
       ...v,
       companyId: v.companyId || activeCompanyId
     }));
-    localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehiclesWithCompany));
     try {
       const { error } = await supabase
         .from('vehicles')
@@ -145,14 +171,12 @@ export const storage = {
           onConflict: 'id',
           ignoreDuplicates: false 
         });
-      if (error) {
-        console.error('❌ Sync vehicles to Supabase failed:', error);
-        await storage.saveAuditLog('vehicles', 'save_failed', { error: error.message });
-      } else {
-        await storage.saveAuditLog('vehicles', 'save', { count: vehiclesWithCompany.length });
-      }
+      if (error) throw error;
+      localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehiclesWithCompany));
+      await storage.saveAuditLog('vehicles', 'save', { count: vehiclesWithCompany.length });
     } catch (e) {
-      console.error('❌ Sync vehicles error:', e);
+      console.error('❌ Failed to save vehicles:', e);
+      throw new Error('فشل حفظ السيارات في قاعدة البيانات');
     }
   },
 
@@ -160,12 +184,10 @@ export const storage = {
     try {
       const { error } = await supabase.from('vehicles').delete().eq('id', id);
       if (error) throw error;
-      const vehicles = JSON.parse(localStorage.getItem(KEYS.VEHICLES) || '[]');
-      localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehicles.filter((v: any) => v.id !== id)));
       await storage.saveAuditLog('vehicles', 'delete', { id });
     } catch (e) {
-      console.error('Delete vehicle error:', e);
-      throw e;
+      console.error('❌ Failed to delete vehicle:', e);
+      throw new Error('فشل حذف السيارة من قاعدة البيانات');
     }
   },
 
@@ -178,16 +200,26 @@ export const storage = {
         .from('drivers')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.DRIVERS, JSON.stringify(camelData));
         return camelData;
       }
+      await storage.saveDrivers(initialDrivers);
+      return initialDrivers;
     } catch (e) {
-      console.warn('Supabase fetch failed, using localStorage backup:', e);
+      console.error('❌ Failed to fetch drivers:', e);
+      const local = localStorage.getItem(KEYS.DRIVERS);
+      if (local) {
+        try {
+          return JSON.parse(local);
+        } catch {
+          return initialDrivers;
+        }
+      }
+      return initialDrivers;
     }
-    const local = JSON.parse(localStorage.getItem(KEYS.DRIVERS) || JSON.stringify(initialDrivers));
-    return Array.isArray(local) ? local : initialDrivers;
   },
 
   saveDrivers: async (drivers: Driver[]) => {
@@ -197,7 +229,6 @@ export const storage = {
       ...d,
       companyId: d.companyId || activeCompanyId
     }));
-    localStorage.setItem(KEYS.DRIVERS, JSON.stringify(driversWithCompany));
     try {
       const { error } = await supabase
         .from('drivers')
@@ -205,14 +236,12 @@ export const storage = {
           onConflict: 'id',
           ignoreDuplicates: false 
         });
-      if (error) {
-        console.error('❌ Sync drivers to Supabase failed:', error);
-        await storage.saveAuditLog('drivers', 'save_failed', { error: error.message });
-      } else {
-        await storage.saveAuditLog('drivers', 'save', { count: driversWithCompany.length });
-      }
+      if (error) throw error;
+      localStorage.setItem(KEYS.DRIVERS, JSON.stringify(driversWithCompany));
+      await storage.saveAuditLog('drivers', 'save', { count: driversWithCompany.length });
     } catch (e) {
-      console.error('❌ Sync drivers error:', e);
+      console.error('❌ Failed to save drivers:', e);
+      throw new Error('فشل حفظ السائقين في قاعدة البيانات');
     }
   },
 
@@ -220,12 +249,10 @@ export const storage = {
     try {
       const { error } = await supabase.from('drivers').delete().eq('id', id);
       if (error) throw error;
-      const drivers = JSON.parse(localStorage.getItem(KEYS.DRIVERS) || '[]');
-      localStorage.setItem(KEYS.DRIVERS, JSON.stringify(drivers.filter((d: any) => d.id !== id)));
       await storage.saveAuditLog('drivers', 'delete', { id });
     } catch (e) {
-      console.error('Delete driver error:', e);
-      throw e;
+      console.error('❌ Failed to delete driver:', e);
+      throw new Error('فشل حذف السائق من قاعدة البيانات');
     }
   },
 
@@ -238,16 +265,26 @@ export const storage = {
         .from('garages')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.GARAGES, JSON.stringify(camelData));
         return camelData;
       }
+      await storage.saveGarages(initialGarages);
+      return initialGarages;
     } catch (e) {
-      console.warn('Supabase fetch failed, using localStorage backup:', e);
+      console.error('❌ Failed to fetch garages:', e);
+      const local = localStorage.getItem(KEYS.GARAGES);
+      if (local) {
+        try {
+          return JSON.parse(local);
+        } catch {
+          return initialGarages;
+        }
+      }
+      return initialGarages;
     }
-    const local = JSON.parse(localStorage.getItem(KEYS.GARAGES) || JSON.stringify(initialGarages));
-    return Array.isArray(local) ? local : initialGarages;
   },
 
   saveGarages: async (garages: Garage[]) => {
@@ -257,7 +294,6 @@ export const storage = {
       ...g,
       companyId: g.companyId || activeCompanyId
     }));
-    localStorage.setItem(KEYS.GARAGES, JSON.stringify(garagesWithCompany));
     try {
       const { error } = await supabase
         .from('garages')
@@ -265,14 +301,12 @@ export const storage = {
           onConflict: 'id',
           ignoreDuplicates: false 
         });
-      if (error) {
-        console.error('❌ Sync garages to Supabase failed:', error);
-        await storage.saveAuditLog('garages', 'save_failed', { error: error.message });
-      } else {
-        await storage.saveAuditLog('garages', 'save', { count: garagesWithCompany.length });
-      }
+      if (error) throw error;
+      localStorage.setItem(KEYS.GARAGES, JSON.stringify(garagesWithCompany));
+      await storage.saveAuditLog('garages', 'save', { count: garagesWithCompany.length });
     } catch (e) {
-      console.error('❌ Sync garages error:', e);
+      console.error('❌ Failed to save garages:', e);
+      throw new Error('فشل حفظ الكراجات في قاعدة البيانات');
     }
   },
 
@@ -280,17 +314,15 @@ export const storage = {
     try {
       const { error } = await supabase.from('garages').delete().eq('id', id);
       if (error) throw error;
-      const garages = JSON.parse(localStorage.getItem(KEYS.GARAGES) || '[]');
-      localStorage.setItem(KEYS.GARAGES, JSON.stringify(garages.filter((g: any) => g.id !== id)));
       await storage.saveAuditLog('garages', 'delete', { id });
     } catch (e) {
-      console.error('Delete garage error:', e);
-      throw e;
+      console.error('❌ Failed to delete garage:', e);
+      throw new Error('فشل حذف الكراج من قاعدة البيانات');
     }
   },
 
   // ============================================================
-  // MAINTENANCE RECORDS
+  // MAINTENANCE RECORDS - المعدل
   // ============================================================
   getMaintenanceRecords: async (): Promise<MaintenanceRecord[]> => {
     try {
@@ -298,16 +330,26 @@ export const storage = {
         .from('maintenance_records')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(camelData));
         return camelData;
       }
+      await storage.saveMaintenanceRecords(initialMaintenanceRecords);
+      return initialMaintenanceRecords;
     } catch (e) {
-      console.warn('Supabase fetch failed, using localStorage backup:', e);
+      console.error('❌ Failed to fetch maintenance records:', e);
+      const local = localStorage.getItem(KEYS.MAINTENANCE);
+      if (local) {
+        try {
+          return JSON.parse(local);
+        } catch {
+          return initialMaintenanceRecords;
+        }
+      }
+      return initialMaintenanceRecords;
     }
-    const local = JSON.parse(localStorage.getItem(KEYS.MAINTENANCE) || JSON.stringify(initialMaintenanceRecords));
-    return Array.isArray(local) ? local : initialMaintenanceRecords;
   },
 
   saveMaintenanceRecords: async (records: MaintenanceRecord[]) => {
@@ -317,7 +359,6 @@ export const storage = {
       ...r,
       companyId: r.companyId || activeCompanyId
     }));
-    localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(recordsWithCompany));
     try {
       const { error } = await supabase
         .from('maintenance_records')
@@ -325,14 +366,12 @@ export const storage = {
           onConflict: 'id',
           ignoreDuplicates: false 
         });
-      if (error) {
-        console.error('❌ Sync maintenance records to Supabase failed:', error);
-        await storage.saveAuditLog('maintenance_records', 'save_failed', { error: error.message });
-      } else {
-        await storage.saveAuditLog('maintenance_records', 'save', { count: recordsWithCompany.length });
-      }
+      if (error) throw error;
+      localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(recordsWithCompany));
+      await storage.saveAuditLog('maintenance_records', 'save', { count: recordsWithCompany.length });
     } catch (e) {
-      console.error('❌ Sync maintenance records error:', e);
+      console.error('❌ Failed to save maintenance records:', e);
+      throw new Error('فشل حفظ سجلات الصيانة في قاعدة البيانات');
     }
   },
 
@@ -340,12 +379,10 @@ export const storage = {
     try {
       const { error } = await supabase.from('maintenance_records').delete().eq('id', id);
       if (error) throw error;
-      const records = JSON.parse(localStorage.getItem(KEYS.MAINTENANCE) || '[]');
-      localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(records.filter((m: any) => m.id !== id)));
       await storage.saveAuditLog('maintenance_records', 'delete', { id });
     } catch (e) {
-      console.error('Delete maintenance record error:', e);
-      throw e;
+      console.error('❌ Failed to delete maintenance record:', e);
+      throw new Error('فشل حذف سجل الصيانة من قاعدة البيانات');
     }
   },
 
@@ -358,16 +395,26 @@ export const storage = {
         .from('fuel_records')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.FUEL, JSON.stringify(camelData));
         return camelData;
       }
+      await storage.saveFuelRecords(initialFuelRecords);
+      return initialFuelRecords;
     } catch (e) {
-      console.warn('Supabase fetch failed, using localStorage backup:', e);
+      console.error('❌ Failed to fetch fuel records:', e);
+      const local = localStorage.getItem(KEYS.FUEL);
+      if (local) {
+        try {
+          return JSON.parse(local);
+        } catch {
+          return initialFuelRecords;
+        }
+      }
+      return initialFuelRecords;
     }
-    const local = JSON.parse(localStorage.getItem(KEYS.FUEL) || JSON.stringify(initialFuelRecords));
-    return Array.isArray(local) ? local : initialFuelRecords;
   },
 
   saveFuelRecords: async (records: FuelRecord[]) => {
@@ -377,7 +424,6 @@ export const storage = {
       ...r,
       companyId: r.companyId || activeCompanyId
     }));
-    localStorage.setItem(KEYS.FUEL, JSON.stringify(recordsWithCompany));
     try {
       const { error } = await supabase
         .from('fuel_records')
@@ -385,14 +431,12 @@ export const storage = {
           onConflict: 'id',
           ignoreDuplicates: false 
         });
-      if (error) {
-        console.error('❌ Sync fuel records to Supabase failed:', error);
-        await storage.saveAuditLog('fuel_records', 'save_failed', { error: error.message });
-      } else {
-        await storage.saveAuditLog('fuel_records', 'save', { count: recordsWithCompany.length });
-      }
+      if (error) throw error;
+      localStorage.setItem(KEYS.FUEL, JSON.stringify(recordsWithCompany));
+      await storage.saveAuditLog('fuel_records', 'save', { count: recordsWithCompany.length });
     } catch (e) {
-      console.error('❌ Sync fuel records error:', e);
+      console.error('❌ Failed to save fuel records:', e);
+      throw new Error('فشل حفظ سجلات الوقود في قاعدة البيانات');
     }
   },
 
@@ -400,12 +444,10 @@ export const storage = {
     try {
       const { error } = await supabase.from('fuel_records').delete().eq('id', id);
       if (error) throw error;
-      const records = JSON.parse(localStorage.getItem(KEYS.FUEL) || '[]');
-      localStorage.setItem(KEYS.FUEL, JSON.stringify(records.filter((f: any) => f.id !== id)));
       await storage.saveAuditLog('fuel_records', 'delete', { id });
     } catch (e) {
-      console.error('Delete fuel record error:', e);
-      throw e;
+      console.error('❌ Failed to delete fuel record:', e);
+      throw new Error('فشل حذف سجل الوقود من قاعدة البيانات');
     }
   },
 
@@ -418,16 +460,26 @@ export const storage = {
         .from('expenses')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.EXPENSES, JSON.stringify(camelData));
         return camelData;
       }
+      await storage.saveExpenseRecords(initialExpenseRecords);
+      return initialExpenseRecords;
     } catch (e) {
-      console.warn('Supabase fetch failed, using localStorage backup:', e);
+      console.error('❌ Failed to fetch expense records:', e);
+      const local = localStorage.getItem(KEYS.EXPENSES);
+      if (local) {
+        try {
+          return JSON.parse(local);
+        } catch {
+          return initialExpenseRecords;
+        }
+      }
+      return initialExpenseRecords;
     }
-    const local = JSON.parse(localStorage.getItem(KEYS.EXPENSES) || JSON.stringify(initialExpenseRecords));
-    return Array.isArray(local) ? local : initialExpenseRecords;
   },
 
   saveExpenseRecords: async (records: ExpenseRecord[]) => {
@@ -437,7 +489,6 @@ export const storage = {
       ...r,
       companyId: r.companyId || activeCompanyId
     }));
-    localStorage.setItem(KEYS.EXPENSES, JSON.stringify(recordsWithCompany));
     try {
       const { error } = await supabase
         .from('expenses')
@@ -445,14 +496,12 @@ export const storage = {
           onConflict: 'id',
           ignoreDuplicates: false 
         });
-      if (error) {
-        console.error('❌ Sync expenses to Supabase failed:', error);
-        await storage.saveAuditLog('expenses', 'save_failed', { error: error.message });
-      } else {
-        await storage.saveAuditLog('expenses', 'save', { count: recordsWithCompany.length });
-      }
+      if (error) throw error;
+      localStorage.setItem(KEYS.EXPENSES, JSON.stringify(recordsWithCompany));
+      await storage.saveAuditLog('expenses', 'save', { count: recordsWithCompany.length });
     } catch (e) {
-      console.error('❌ Sync expenses error:', e);
+      console.error('❌ Failed to save expense records:', e);
+      throw new Error('فشل حفظ سجلات المصاريف في قاعدة البيانات');
     }
   },
 
@@ -460,17 +509,15 @@ export const storage = {
     try {
       const { error } = await supabase.from('expenses').delete().eq('id', id);
       if (error) throw error;
-      const records = JSON.parse(localStorage.getItem(KEYS.EXPENSES) || '[]');
-      localStorage.setItem(KEYS.EXPENSES, JSON.stringify(records.filter((e: any) => e.id !== id)));
       await storage.saveAuditLog('expenses', 'delete', { id });
     } catch (e) {
-      console.error('Delete expense record error:', e);
-      throw e;
+      console.error('❌ Failed to delete expense record:', e);
+      throw new Error('فشل حذف سجل المصروف من قاعدة البيانات');
     }
   },
 
   // ============================================================
-  // CHECKOUT SESSIONS - المُعدّل بالكامل
+  // CHECKOUT SESSIONS
   // ============================================================
   getCheckoutSessions: async (): Promise<CheckoutSession[]> => {
     try {
@@ -478,58 +525,48 @@ export const storage = {
         .from('checkout_sessions')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(camelData));
         return camelData;
       }
+      await storage.saveCheckoutSessions(initialCheckoutSessions);
+      return initialCheckoutSessions;
     } catch (e) {
-      console.warn('Supabase fetch failed, using localStorage backup:', e);
+      console.error('❌ Failed to fetch checkout sessions:', e);
+      const local = localStorage.getItem(KEYS.CHECKOUTS);
+      if (local) {
+        try {
+          return JSON.parse(local);
+        } catch {
+          return initialCheckoutSessions;
+        }
+      }
+      return initialCheckoutSessions;
     }
-    const local = JSON.parse(localStorage.getItem(KEYS.CHECKOUTS) || JSON.stringify(initialCheckoutSessions));
-    return Array.isArray(local) ? local : initialCheckoutSessions;
   },
 
   saveCheckoutSessions: async (sessions: CheckoutSession[]) => {
     if (!Array.isArray(sessions)) return;
     const activeCompanyId = storage.getActiveCompanyId();
-    
-    // تحويل البيانات إلى Snake Case مع التأكد من التعامل مع JSONB
-    const sessionsForDb = sessions.map(s => {
-      const snake = toSnakeCase(s);
-      // التأكد من أن checkout_checklist هو كائن JSONB صحيح
-      if (s.checkoutChecklist) {
-        snake.checkout_checklist = s.checkoutChecklist;
-      }
-      if (s.returnChecklist) {
-        snake.return_checklist = s.returnChecklist;
-      }
-      return snake;
-    });
-
-    localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessions));
-    
+    const sessionsWithCompany = sessions.map(s => ({
+      ...s,
+      companyId: s.companyId || activeCompanyId
+    }));
     try {
-      // محاولة الإدراج باستخدام upsert مع onConflict صريح
       const { error } = await supabase
         .from('checkout_sessions')
-        .upsert(sessionsForDb, { 
+        .upsert(toSnakeCase(sessionsWithCompany), { 
           onConflict: 'id',
           ignoreDuplicates: false 
         });
-        
-      if (error) {
-        console.error('❌ Sync checkout sessions to Supabase failed:', error);
-        await storage.saveAuditLog('checkout_sessions', 'save_failed', { error: error.message });
-        // عرض تنبيه للمستخدم بأن البيانات لم تُحفظ في السحابة
-        alert('⚠️ تم حفظ البيانات محلياً فقط، فشل الاتصال بقاعدة البيانات.\n' + error.message);
-      } else {
-        await storage.saveAuditLog('checkout_sessions', 'save', { count: sessions.length });
-        console.log('✅ Checkout sessions synced successfully');
-      }
+      if (error) throw error;
+      localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessionsWithCompany));
+      await storage.saveAuditLog('checkout_sessions', 'save', { count: sessionsWithCompany.length });
     } catch (e) {
-      console.error('❌ Sync checkout sessions error:', e);
-      alert('⚠️ حدث خطأ في الاتصال بقاعدة البيانات، تم الحفظ محلياً.');
+      console.error('❌ Failed to save checkout sessions:', e);
+      throw new Error('فشل حفظ جلسات الاستلام في قاعدة البيانات');
     }
   },
 
@@ -537,12 +574,10 @@ export const storage = {
     try {
       const { error } = await supabase.from('checkout_sessions').delete().eq('id', id);
       if (error) throw error;
-      const sessions = JSON.parse(localStorage.getItem(KEYS.CHECKOUTS) || '[]');
-      localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessions.filter((s: any) => s.id !== id)));
       await storage.saveAuditLog('checkout_sessions', 'delete', { id });
     } catch (e) {
-      console.error('Delete checkout session error:', e);
-      throw e;
+      console.error('❌ Failed to delete checkout session:', e);
+      throw new Error('فشل حذف جلسة الاستلام من قاعدة البيانات');
     }
   },
 
@@ -560,6 +595,7 @@ export const storage = {
     }
     return initialCompanySettings;
   },
+
   saveSettings: (settings: CompanySettings) => {
     localStorage.setItem(KEYS.SETTINGS, JSON.stringify(settings));
   },
@@ -573,16 +609,26 @@ export const storage = {
         .from('documents')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && Array.isArray(data) && data.length > 0) {
+      if (error) throw error;
+      if (data && Array.isArray(data) && data.length > 0) {
         const camelData = toCamelCase(data);
         localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(camelData));
         return camelData;
       }
+      await storage.saveDocuments(initialCompanyDocuments);
+      return initialCompanyDocuments;
     } catch (e) {
-      console.warn('Supabase fetch failed, using localStorage backup:', e);
+      console.error('❌ Failed to fetch documents:', e);
+      const local = localStorage.getItem(KEYS.DOCUMENTS);
+      if (local) {
+        try {
+          return JSON.parse(local);
+        } catch {
+          return initialCompanyDocuments;
+        }
+      }
+      return initialCompanyDocuments;
     }
-    const local = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || JSON.stringify(initialCompanyDocuments));
-    return Array.isArray(local) ? local : initialCompanyDocuments;
   },
 
   saveDocuments: async (docs: CompanyDocument[]) => {
@@ -592,7 +638,6 @@ export const storage = {
       ...d,
       companyId: d.companyId || activeCompanyId
     }));
-    localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docsWithCompany));
     try {
       const { error } = await supabase
         .from('documents')
@@ -600,14 +645,12 @@ export const storage = {
           onConflict: 'id',
           ignoreDuplicates: false 
         });
-      if (error) {
-        console.error('❌ Sync documents to Supabase failed:', error);
-        await storage.saveAuditLog('documents', 'save_failed', { error: error.message });
-      } else {
-        await storage.saveAuditLog('documents', 'save', { count: docsWithCompany.length });
-      }
+      if (error) throw error;
+      localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docsWithCompany));
+      await storage.saveAuditLog('documents', 'save', { count: docsWithCompany.length });
     } catch (e) {
-      console.error('❌ Sync documents error:', e);
+      console.error('❌ Failed to save documents:', e);
+      throw new Error('فشل حفظ المستندات في قاعدة البيانات');
     }
   },
 
@@ -615,12 +658,10 @@ export const storage = {
     try {
       const { error } = await supabase.from('documents').delete().eq('id', id);
       if (error) throw error;
-      const docs = JSON.parse(localStorage.getItem(KEYS.DOCUMENTS) || '[]');
-      localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docs.filter((d: any) => d.id !== id)));
       await storage.saveAuditLog('documents', 'delete', { id });
     } catch (e) {
-      console.error('Delete document error:', e);
-      throw e;
+      console.error('❌ Failed to delete document:', e);
+      throw new Error('فشل حذف المستند من قاعدة البيانات');
     }
   },
 
@@ -674,14 +715,8 @@ export const storage = {
   },
 
   // ============================================================
-  // دوال المزامنة
+  // دوال إضافية
   // ============================================================
-  getPendingSyncCount: (): number => parseInt(localStorage.getItem(KEYS.PENDING_SYNC) || '0'),
-  getLastSyncTime: (): string | null => localStorage.getItem(KEYS.LAST_SYNC_TIME),
-  clearPendingSync: (): void => {
-    localStorage.setItem(KEYS.PENDING_SYNC, '0');
-    localStorage.setItem(KEYS.LAST_SYNC_TIME, new Date().toISOString());
-  },
   resetToDefaults: () => {
     localStorage.clear();
     localStorage.setItem(KEYS.COMPANIES, JSON.stringify(initialCompanies));

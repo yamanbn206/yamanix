@@ -68,11 +68,6 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
     currency: 'SAR'
   });
 
-  // تحديث النموذج عندما تتغير الإعدادات من الخارج
-  React.useEffect(() => {
-    setForm(settings);
-  }, [settings]);
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -621,9 +616,8 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                   </label>
                   <input
                     type="text"
-                    value={form.printHeaderNote || ''}
+                    value={form.printHeaderNote}
                     onChange={e => setForm({ ...form, printHeaderNote: e.target.value })}
-                    placeholder={isAr ? 'نص رأس التقرير المطبوع' : 'Print header note text'}
                     className="w-full px-3 py-2 border rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
                   />
                 </div>
@@ -634,9 +628,8 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                   </label>
                   <textarea
                     rows={2}
-                    value={form.printFooterNote || ''}
+                    value={form.printFooterNote}
                     onChange={e => setForm({ ...form, printFooterNote: e.target.value })}
-                    placeholder={isAr ? 'نص تذييل التقرير المطبوع' : 'Print footer note text'}
                     className="w-full px-3 py-2 border rounded-xl text-xs bg-slate-50 dark:bg-slate-800 border-slate-300 dark:border-slate-700"
                   />
                 </div>
@@ -716,11 +709,11 @@ export const CompanySettingsView: React.FC<CompanySettingsViewProps> = ({
                   </div>
 
                   <p className="text-[10px] text-slate-600 italic border-b pb-2 border-slate-100">
-                    "{form.printHeaderNote || t('printHeaderNoteLabel', lang)}"
+                    "{form.printHeaderNote}"
                   </p>
 
                   <div className="text-[10px] text-slate-500 text-center pt-1">
-                    {form.printFooterNote || t('printFooterNoteLabel', lang)}
+                    {form.printFooterNote}
                   </div>
                 </div>
               </div>
