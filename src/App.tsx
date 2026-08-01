@@ -16,7 +16,6 @@ import { storage } from './lib/storage';
 import { supabase } from './lib/supabase';
 import { Language, t } from './lib/i18n';
 
-// Components
 import { DashboardView } from './components/DashboardView';
 import { VehiclesView } from './components/VehiclesView';
 import { DriversView } from './components/DriversView';
@@ -43,26 +42,22 @@ import {
 const DEFAULT_LOGO_URL = '/yamanix-logo.png';
 
 export default function App() {
-  // ===== اللغة =====
   const [lang, setLang] = useState<Language>(() => {
     const saved = localStorage.getItem('fleet_language') as Language;
     return saved || 'en';
   });
   const isAr = lang === 'ar';
 
-  // ===== التنقل =====
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState<boolean>(false);
   const toastRef = React.useRef<ToastRefHandler>(null);
 
-  // ===== المصادقة =====
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ===== بيانات التطبيق =====
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(() => {
     const saved = localStorage.getItem('fleet_active_company');
@@ -80,18 +75,14 @@ export default function App() {
   const [receiptSession, setReceiptSession] = useState<CheckoutSession | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
 
-  // ============================================================
-  // 1. حفظ اللغة
-  // ============================================================
+  // ==================== HOOKS ====================
+
   useEffect(() => {
     localStorage.setItem('fleet_language', lang);
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // ============================================================
-  // 2. جلسة المستخدم
-  // ============================================================
   useEffect(() => {
     const getSession = async () => {
       try {
@@ -142,9 +133,6 @@ export default function App() {
     return () => listener?.subscription.unsubscribe();
   }, []);
 
-  // ============================================================
-  // 3. حفظ بيانات المستخدم في localStorage
-  // ============================================================
   useEffect(() => {
     if (session?.user) {
       localStorage.setItem('fleet_user_id', session.user.id);
@@ -152,14 +140,9 @@ export default function App() {
     }
   }, [session]);
 
-  // ============================================================
-  // 4. تحميل البيانات من Supabase (مع إصلاح isDataLoading)
-  // ============================================================
+  // تحميل البيانات مع معالجة الأخطاء
   useEffect(() => {
-    if (!session) {
-      setIsDataLoading(false); // ✅ حل مشكلة التحميل العالق
-      return;
-    }
+    if (!session) return;
 
     const loadData = async () => {
       try {
@@ -188,7 +171,7 @@ export default function App() {
         setIsDataLoading(false);
       } catch (error) {
         console.error('Failed to load data from Supabase:', error);
-        // محاولة تحميل من localStorage كنسخة احتياطية
+        // استخدام localStorage كحل احتياطي
         try {
           const localVehicles = JSON.parse(localStorage.getItem('fleet_app_vehicles_v1') || '[]');
           const localDrivers = JSON.parse(localStorage.getItem('fleet_app_drivers_v1') || '[]');
@@ -207,9 +190,7 @@ export default function App() {
     loadData();
   }, [session]);
 
-  // ============================================================
-  // 5. تعيين الشركة الافتراضية
-  // ============================================================
+  // تعيين الشركة الافتراضية
   useEffect(() => {
     if (companies.length > 0 && !activeCompanyId) {
       const firstId = companies[0].id;
@@ -218,9 +199,7 @@ export default function App() {
     }
   }, [companies, activeCompanyId]);
 
-  // ============================================================
-  // 6. استماع Realtime لتحديث checkout_sessions
-  // ============================================================
+  // Realtime
   useEffect(() => {
     if (!session) return;
     const channel = supabase
@@ -244,9 +223,8 @@ export default function App() {
     };
   }, [session]);
 
-  // ============================================================
-  // دوال الشركات
-  // ============================================================
+  // ==================== FUNCTIONS ====================
+
   const handleSelectCompany = (id: string) => {
     setActiveCompanyIdState(id);
     storage.setActiveCompanyId(id);
@@ -286,9 +264,6 @@ export default function App() {
     }
   };
 
-  // ============================================================
-  // إعدادات الشركة الحالية
-  // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
     if (!activeCompanyId) {
       return {
@@ -323,9 +298,7 @@ export default function App() {
     return settings;
   }, [activeCompanyId, companies, settings, lang]);
 
-  // ============================================================
-  // تصفية البيانات
-  // ============================================================
+  // التصفية
   const filteredVehicles = useMemo(() => {
     if (!Array.isArray(vehicles) || !activeCompanyId) return [];
     return vehicles.filter(v => (v.companyId || 'comp-1') === activeCompanyId);
@@ -366,24 +339,21 @@ export default function App() {
     return documents.filter(doc => (doc.companyId || 'comp-1') === activeCompanyId);
   }, [documents, activeCompanyId]);
 
-  // ============================================================
-  // التنبيهات
-  // ============================================================
   const activeAlertsCount = React.useMemo(() => {
     let count = 0;
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setHours(0,0,0,0);
     if (Array.isArray(filteredVehicles)) {
       filteredVehicles.forEach(v => {
         if (v.licenseExpiryDate) {
           const d = new Date(v.licenseExpiryDate);
-          d.setHours(0, 0, 0, 0);
+          d.setHours(0,0,0,0);
           const days = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           if (days <= 30) count++;
         }
         if (v.insuranceExpiryDate) {
           const d = new Date(v.insuranceExpiryDate);
-          d.setHours(0, 0, 0, 0);
+          d.setHours(0,0,0,0);
           const days = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           if (days <= 30) count++;
         }
@@ -394,7 +364,7 @@ export default function App() {
       filteredDrivers.forEach(d => {
         if (d.licenseExpiryDate) {
           const date = new Date(d.licenseExpiryDate);
-          date.setHours(0, 0, 0, 0);
+          date.setHours(0,0,0,0);
           const days = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           if (days <= 30) count++;
         }
@@ -403,9 +373,6 @@ export default function App() {
     return count;
   }, [filteredVehicles, filteredDrivers]);
 
-  // ============================================================
-  // دوال الصلاحيات
-  // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
   const hasPermission = (module: string, action: string = 'view') => {
@@ -431,9 +398,8 @@ export default function App() {
     }
   };
 
-  // ============================================================
-  // VEHICLES
-  // ============================================================
+  // ==================== HANDLERS ====================
+
   const handleSaveVehicle = async (v: Vehicle) => {
     if (!hasPermission('vehicles', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة سيارات' : 'You do not have permission to add vehicles');
@@ -476,9 +442,6 @@ export default function App() {
     }
   };
 
-  // ============================================================
-  // DRIVERS
-  // ============================================================
   const handleSaveDriver = async (d: Driver) => {
     if (!hasPermission('drivers', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة سائقين' : 'You do not have permission to add drivers');
@@ -521,9 +484,6 @@ export default function App() {
     }
   };
 
-  // ============================================================
-  // MAINTENANCE
-  // ============================================================
   const handleSaveMaintenance = async (record: MaintenanceRecord) => {
     if (!hasPermission('maintenance', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة سجلات صيانة' : 'You do not have permission to add maintenance records');
@@ -559,9 +519,6 @@ export default function App() {
     }
   };
 
-  // ============================================================
-  // GARAGES
-  // ============================================================
   const handleSaveGarage = async (g: Garage) => {
     if (!hasPermission('maintenance', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة كراجات' : 'You do not have permission to add garages');
@@ -597,9 +554,6 @@ export default function App() {
     }
   };
 
-  // ============================================================
-  // FUEL
-  // ============================================================
   const handleSaveFuel = async (f: FuelRecord) => {
     if (!hasPermission('fuel', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة سجلات وقود' : 'You do not have permission to add fuel records');
@@ -635,9 +589,6 @@ export default function App() {
     }
   };
 
-  // ============================================================
-  // EXPENSES
-  // ============================================================
   const handleSaveExpense = async (e: ExpenseRecord) => {
     if (!hasPermission('fuel', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة مصاريف' : 'You do not have permission to add expenses');
@@ -673,9 +624,6 @@ export default function App() {
     }
   };
 
-  // ============================================================
-  // CHECKOUT
-  // ============================================================
   const handleSaveCheckout = async (session: CheckoutSession) => {
     if (!hasPermission('checkout', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة جلسات استلام' : 'You do not have permission to add checkout sessions');
@@ -731,9 +679,6 @@ export default function App() {
     }
   };
 
-  // ============================================================
-  // SETTINGS & DOCUMENTS
-  // ============================================================
   const handleSaveSettings = (newSettings: CompanySettings) => {
     setSettings(newSettings);
     storage.saveSettings(newSettings);
@@ -801,9 +746,6 @@ export default function App() {
     setActiveTab('reports');
   };
 
-  // ============================================================
-  // تسجيل الخروج
-  // ============================================================
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -813,9 +755,6 @@ export default function App() {
     localStorage.removeItem('fleet_user_email');
   };
 
-  // ============================================================
-  // قائمة التبويبات
-  // ============================================================
   const navItems = [
     { id: 'dashboard', label: t('dashboard', lang), icon: LayoutDashboard, module: 'vehicles' },
     { id: 'vehicles', label: t('fleetVehicles', lang), icon: Car, module: 'vehicles' },
@@ -831,9 +770,8 @@ export default function App() {
     { id: 'audit', label: isAr ? 'سجل العمليات' : 'Audit Log', icon: History, module: 'users' },
   ];
 
-  // ============================================================
-  // التحقق من حالة التحميل والمصادقة
-  // ============================================================
+  // ==================== RENDER ====================
+
   if (loading || isDataLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">{t('loading', lang)}</div>;
   }
@@ -880,9 +818,6 @@ export default function App() {
     return null;
   }
 
-  // ============================================================
-  // التصيير الرئيسي
-  // ============================================================
   const currentNavItem = navItems.find(item => item.id === activeTab);
   const isAllowed = currentNavItem ? hasPermission(currentNavItem.module, 'view') : false;
 

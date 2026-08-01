@@ -24,9 +24,6 @@ import {
 } from '../data/mockData';
 import { supabase } from './supabase';
 
-// ============================================================
-// مفاتيح التخزين المحلي (للنسخ الاحتياطي فقط)
-// ============================================================
 const KEYS = {
   COMPANIES: 'fleet_app_companies_v1',
   ACTIVE_COMPANY_ID: 'fleet_app_active_company_id_v1',
@@ -39,13 +36,10 @@ const KEYS = {
   CHECKOUTS: 'fleet_app_checkouts_v1',
   SETTINGS: 'fleet_app_settings_v1',
   DOCUMENTS: 'fleet_app_documents_v1',
-  PENDING_SYNC: 'fleet_pending_sync_count', // مفتاح التزامن
+  PENDING_SYNC: 'fleet_pending_sync_count',
   LAST_SYNC_TIME: 'fleet_last_sync_time',
 };
 
-// ============================================================
-// دوال مساعدة
-// ============================================================
 function toSnakeCase(obj: any): any {
   if (obj === null || obj === undefined || typeof obj !== 'object') return obj;
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
@@ -68,12 +62,8 @@ function toCamelCase(obj: any): any {
   return result;
 }
 
-// ============================================================
-// كائن التخزين الرئيسي
-// ============================================================
 export const storage = {
 
-  // ===== ACTIVE COMPANY ID =====
   getActiveCompanyId: (): string => localStorage.getItem(KEYS.ACTIVE_COMPANY_ID) || 'comp-1',
   setActiveCompanyId: (id: string) => localStorage.setItem(KEYS.ACTIVE_COMPANY_ID, id),
 
@@ -92,7 +82,6 @@ export const storage = {
         localStorage.setItem(KEYS.COMPANIES, JSON.stringify(camelData));
         return camelData;
       }
-      // إذا كانت فارغة، استخدم البيانات الأولية
       await storage.saveCompanies(initialCompanies);
       return initialCompanies;
     } catch (e) {
@@ -108,12 +97,12 @@ export const storage = {
   saveCompanies: async (companies: Company[]) => {
     if (!Array.isArray(companies)) return;
     try {
-      const { error } = await supabase
-        .from('companies')
-        .upsert(toSnakeCase(companies), { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+      // استخدام delete + insert لتجنب مشاكل 409
+      const ids = companies.map(c => c.id);
+      if (ids.length > 0) {
+        await supabase.from('companies').delete().in('id', ids);
+      }
+      const { error } = await supabase.from('companies').insert(toSnakeCase(companies));
       if (error) throw error;
       localStorage.setItem(KEYS.COMPANIES, JSON.stringify(companies));
     } catch (e) {
@@ -157,12 +146,12 @@ export const storage = {
       companyId: v.companyId || activeCompanyId
     }));
     try {
-      const { error } = await supabase
-        .from('vehicles')
-        .upsert(toSnakeCase(vehiclesWithCompany), { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+      // حذف ثم إدراج لتجنب 409
+      const ids = vehiclesWithCompany.map(v => v.id);
+      if (ids.length > 0) {
+        await supabase.from('vehicles').delete().in('id', ids);
+      }
+      const { error } = await supabase.from('vehicles').insert(toSnakeCase(vehiclesWithCompany));
       if (error) throw error;
       localStorage.setItem(KEYS.VEHICLES, JSON.stringify(vehiclesWithCompany));
       await storage.saveAuditLog('vehicles', 'save', { count: vehiclesWithCompany.length });
@@ -218,12 +207,11 @@ export const storage = {
       companyId: d.companyId || activeCompanyId
     }));
     try {
-      const { error } = await supabase
-        .from('drivers')
-        .upsert(toSnakeCase(driversWithCompany), { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+      const ids = driversWithCompany.map(d => d.id);
+      if (ids.length > 0) {
+        await supabase.from('drivers').delete().in('id', ids);
+      }
+      const { error } = await supabase.from('drivers').insert(toSnakeCase(driversWithCompany));
       if (error) throw error;
       localStorage.setItem(KEYS.DRIVERS, JSON.stringify(driversWithCompany));
       await storage.saveAuditLog('drivers', 'save', { count: driversWithCompany.length });
@@ -279,12 +267,11 @@ export const storage = {
       companyId: g.companyId || activeCompanyId
     }));
     try {
-      const { error } = await supabase
-        .from('garages')
-        .upsert(toSnakeCase(garagesWithCompany), { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+      const ids = garagesWithCompany.map(g => g.id);
+      if (ids.length > 0) {
+        await supabase.from('garages').delete().in('id', ids);
+      }
+      const { error } = await supabase.from('garages').insert(toSnakeCase(garagesWithCompany));
       if (error) throw error;
       localStorage.setItem(KEYS.GARAGES, JSON.stringify(garagesWithCompany));
       await storage.saveAuditLog('garages', 'save', { count: garagesWithCompany.length });
@@ -340,12 +327,11 @@ export const storage = {
       companyId: r.companyId || activeCompanyId
     }));
     try {
-      const { error } = await supabase
-        .from('maintenance_records')
-        .upsert(toSnakeCase(recordsWithCompany), { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+      const ids = recordsWithCompany.map(r => r.id);
+      if (ids.length > 0) {
+        await supabase.from('maintenance_records').delete().in('id', ids);
+      }
+      const { error } = await supabase.from('maintenance_records').insert(toSnakeCase(recordsWithCompany));
       if (error) throw error;
       localStorage.setItem(KEYS.MAINTENANCE, JSON.stringify(recordsWithCompany));
       await storage.saveAuditLog('maintenance_records', 'save', { count: recordsWithCompany.length });
@@ -401,12 +387,11 @@ export const storage = {
       companyId: r.companyId || activeCompanyId
     }));
     try {
-      const { error } = await supabase
-        .from('fuel_records')
-        .upsert(toSnakeCase(recordsWithCompany), { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+      const ids = recordsWithCompany.map(r => r.id);
+      if (ids.length > 0) {
+        await supabase.from('fuel_records').delete().in('id', ids);
+      }
+      const { error } = await supabase.from('fuel_records').insert(toSnakeCase(recordsWithCompany));
       if (error) throw error;
       localStorage.setItem(KEYS.FUEL, JSON.stringify(recordsWithCompany));
       await storage.saveAuditLog('fuel_records', 'save', { count: recordsWithCompany.length });
@@ -462,12 +447,11 @@ export const storage = {
       companyId: r.companyId || activeCompanyId
     }));
     try {
-      const { error } = await supabase
-        .from('expenses')
-        .upsert(toSnakeCase(recordsWithCompany), { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+      const ids = recordsWithCompany.map(r => r.id);
+      if (ids.length > 0) {
+        await supabase.from('expenses').delete().in('id', ids);
+      }
+      const { error } = await supabase.from('expenses').insert(toSnakeCase(recordsWithCompany));
       if (error) throw error;
       localStorage.setItem(KEYS.EXPENSES, JSON.stringify(recordsWithCompany));
       await storage.saveAuditLog('expenses', 'save', { count: recordsWithCompany.length });
@@ -523,12 +507,11 @@ export const storage = {
       companyId: s.companyId || activeCompanyId
     }));
     try {
-      const { error } = await supabase
-        .from('checkout_sessions')
-        .upsert(toSnakeCase(sessionsWithCompany), { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+      const ids = sessionsWithCompany.map(s => s.id);
+      if (ids.length > 0) {
+        await supabase.from('checkout_sessions').delete().in('id', ids);
+      }
+      const { error } = await supabase.from('checkout_sessions').insert(toSnakeCase(sessionsWithCompany));
       if (error) throw error;
       localStorage.setItem(KEYS.CHECKOUTS, JSON.stringify(sessionsWithCompany));
       await storage.saveAuditLog('checkout_sessions', 'save', { count: sessionsWithCompany.length });
@@ -599,12 +582,11 @@ export const storage = {
       companyId: d.companyId || activeCompanyId
     }));
     try {
-      const { error } = await supabase
-        .from('documents')
-        .upsert(toSnakeCase(docsWithCompany), { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+      const ids = docsWithCompany.map(d => d.id);
+      if (ids.length > 0) {
+        await supabase.from('documents').delete().in('id', ids);
+      }
+      const { error } = await supabase.from('documents').insert(toSnakeCase(docsWithCompany));
       if (error) throw error;
       localStorage.setItem(KEYS.DOCUMENTS, JSON.stringify(docsWithCompany));
       await storage.saveAuditLog('documents', 'save', { count: docsWithCompany.length });
@@ -669,7 +651,7 @@ export const storage = {
   },
 
   // ============================================================
-  // 🟢 دوال المزامنة المفقودة (تم إضافتها هنا)
+  // SYNC FUNCTIONS
   // ============================================================
   getPendingSyncCount: (): number => {
     try {
@@ -690,7 +672,7 @@ export const storage = {
   },
 
   // ============================================================
-  // إعادة تعيين البيانات إلى الوضع الافتراضي
+  // RESET
   // ============================================================
   resetToDefaults: () => {
     localStorage.clear();
