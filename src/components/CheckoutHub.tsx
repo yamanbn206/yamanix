@@ -8,19 +8,13 @@ import {
   Clock, 
   Car, 
   UserCheck, 
-  ArrowLeftRight, 
   Plus, 
   Calendar, 
   Gauge, 
   FileText, 
   Printer, 
   RotateCcw,
-  Sparkles,
-  ShieldCheck,
   ListChecks,
-  CheckSquare,
-  Square,
-  ShieldAlert,
   Trash2,
   RefreshCw
 } from 'lucide-react';
@@ -115,12 +109,10 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
 
     try {
       const id = `chk-${Date.now().toString().slice(-6)}-${Math.random().toString(36).slice(2, 6)}`;
-      
-      // 🔧 تعيين companyId من settings (سيتم تمريره من App)
       const companyId = settings.companyId || null;
 
       const newSession: CheckoutSession = {
-        id: id,
+        id,
         vehicleId: formVehicleId,
         driverId: formDriverId,
         purpose: formPurpose,
@@ -135,7 +127,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
         checkoutNotes: formNotes,
         checkoutChecklist: formChecklist,
         status: 'active',
-        companyId: companyId // 🔧 تعيين companyId
+        companyId
       };
 
       await onSaveCheckout(newSession);
@@ -215,11 +207,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
   const handleRefresh = async () => {
     if (isRefreshing) return;
     setIsRefreshing(true);
-    if (onRefresh) {
-      await onRefresh();
-    } else {
-      window.location.reload();
-    }
+    if (onRefresh) await onRefresh();
     setIsRefreshing(false);
   };
 
@@ -228,7 +216,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
-      {/* Top Banner */}
       <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white rounded-2xl p-6 shadow-md flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2">
@@ -239,18 +226,15 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
             {t('checkoutSubtitle', lang)}
           </p>
         </div>
-
         <div className="flex items-center gap-2">
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="px-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white font-bold rounded-xl text-xs shadow transition flex items-center gap-2"
-            title={isAr ? 'تحديث القائمة' : 'Refresh list'}
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             {isAr ? 'تحديث' : 'Refresh'}
           </button>
-
           <button
             onClick={() => {
               resetForm();
@@ -264,7 +248,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex border-b border-slate-200 dark:border-slate-700 space-x-2 space-x-reverse">
         <button
           onClick={() => setActiveTab('active_list')}
@@ -277,7 +260,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
           <Clock className="w-4 h-4" />
           {isAr ? `السيارات المخرجة حالياً (${activeSessions.length})` : `${t('currentlyCheckedOut', lang)} (${activeSessions.length})`}
         </button>
-
         <button
           onClick={() => setActiveTab('history')}
           className={`pb-3 px-4 font-bold text-sm transition border-b-2 flex items-center gap-2 ${
@@ -291,7 +273,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
         </button>
       </div>
 
-      {/* ACTIVE SESSIONS LIST */}
       {activeTab === 'active_list' && (
         <div className="space-y-4">
           {activeSessions.length === 0 ? (
@@ -311,12 +292,8 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
               {activeSessions.map(session => {
                 const vehicle = vehicles.find(v => v.id === session.vehicleId);
                 const driver = drivers.find(d => d.id === session.driverId);
-
                 return (
-                  <div 
-                    key={session.id}
-                    className="bg-white dark:bg-slate-800 border-2 border-amber-300 dark:border-amber-800/80 rounded-2xl p-5 shadow-sm space-y-4 relative"
-                  >
+                  <div key={session.id} className="bg-white dark:bg-slate-800 border-2 border-amber-300 dark:border-amber-800/80 rounded-2xl p-5 shadow-sm space-y-4 relative">
                     <div className="flex items-start justify-between">
                       <div>
                         <span className="inline-block bg-amber-100 text-amber-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full mb-1">
@@ -332,7 +309,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                       <button
                         onClick={() => onPrintReceipt(session)}
                         className="p-2 text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 rounded-lg transition text-xs flex items-center gap-1"
-                        title={isAr ? 'طباعة إيصال الاستلام' : 'Print Receipt'}
                       >
                         <Printer className="w-4 h-4" />
                         {t('printReceipt', lang)}
@@ -358,7 +334,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                         <span className="text-slate-400 block text-[10px]">{isAr ? 'مستوى البنزين عند الخروج:' : 'Fuel Level:'}</span>
                         <p className="font-semibold text-emerald-600">{session.checkoutFuelLevel}</p>
                       </div>
-
                       {session.checkoutChecklist && (
                         <div className="col-span-2 pt-1 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px]">
                           <span className="text-slate-500 flex items-center gap-1 font-medium">
@@ -393,7 +368,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
         </div>
       )}
 
-      {/* COMPLETED HISTORY LIST */}
       {activeTab === 'history' && (
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 shadow-sm">
           <div className="overflow-x-auto">
@@ -420,7 +394,6 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                   const checkoutOdo = session.checkoutOdometer || 0;
                   const returnOdo = session.returnOdometer || 0;
                   const distanceDriven = Math.max(0, returnOdo - checkoutOdo);
-
                   return (
                     <tr key={session.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/40 transition">
                       <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
@@ -437,10 +410,10 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                       <td className="p-3">
                         <div className="flex gap-1">
                           {session.checkoutSignature && (
-                            <img src={session.checkoutSignature} alt="Out" className="h-5 border rounded" title={isAr ? 'توقيع الخروج' : 'Checkout Signature'} />
+                            <img src={session.checkoutSignature} alt="Out" className="h-5 border rounded" />
                           )}
                           {session.returnSignature && (
-                            <img src={session.returnSignature} alt="In" className="h-5 border rounded border-emerald-300" title={isAr ? 'توقيع الإعادة' : 'Return Signature'} />
+                            <img src={session.returnSignature} alt="In" className="h-5 border rounded border-emerald-300" />
                           )}
                         </div>
                       </td>
@@ -448,25 +421,22 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
                         <button
                           onClick={() => onPrintReceipt(session)}
                           className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
-                          title={isAr ? 'طباعة إيصال الحركة' : 'Print Receipt'}
                         >
                           <Printer className="w-4 h-4" />
                         </button>
                       </td>
-                      {profile?.role === 'admin' && (
+                      {profile?.role === 'admin' && onDeleteCheckout && (
                         <td className="p-3">
-                          {onDeleteCheckout && (
-                            <button
-                              onClick={() => {
-                                if (confirm(isAr ? 'هل أنت متأكد من حذف هذه الجلسة؟' : 'Are you sure you want to delete this session?')) {
-                                  onDeleteCheckout(session.id);
-                                }
-                              }}
-                              className="text-rose-500 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
+                          <button
+                            onClick={() => {
+                              if (confirm(isAr ? 'هل أنت متأكد من حذف هذه الجلسة؟' : 'Are you sure you want to delete this session?')) {
+                                onDeleteCheckout(session.id);
+                              }
+                            }}
+                            className="text-rose-500 hover:text-rose-700 text-xs font-bold flex items-center gap-1"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       )}
                     </tr>
@@ -478,10 +448,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
         </div>
       )}
 
-      {/* باقي الكود (CHECKOUT MODAL و RETURN MODAL) كما هو، مع إضافة companyId في newSession */}
-      {/* ... */}
-      
-      {/* CHECKOUT MODAL (مختصر) */}
+      {/* CHECKOUT MODAL */}
       {showCheckoutModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 my-8 space-y-4">
@@ -494,7 +461,258 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
             </div>
 
             <form onSubmit={handleCreateCheckout} className="space-y-4">
-              {/* ... نموذج الإدخال كما هو ... */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {isAr ? 'اختر السيارة المتوفرة *' : 'Select Vehicle *'}
+                  </label>
+                  <select
+                    required
+                    value={formVehicleId}
+                    onChange={e => handleVehicleSelect(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  >
+                    <option value="">-- {isAr ? 'اختر مركبة' : 'Select Vehicle'} --</option>
+                    {availableVehicles.length === 0 ? (
+                      <option value="" disabled>{isAr ? 'لا توجد سيارات متاحة' : 'No vehicles available'}</option>
+                    ) : (
+                      availableVehicles.map(v => (
+                        <option key={v.id} value={v.id}>
+                          {v.make} {v.model} - {v.plateNumber} ({v.mileage} km)
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {isAr ? 'المستلم / السائق *' : 'Driver / Recipient *'}
+                  </label>
+                  <select
+                    required
+                    value={formDriverId}
+                    onChange={e => setFormDriverId(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  >
+                    <option value="">-- {isAr ? 'اختر المستلم' : 'Select Driver'} --</option>
+                    {drivers.length === 0 ? (
+                      <option value="" disabled>{isAr ? 'لا توجد سائقين' : 'No drivers'}</option>
+                    ) : (
+                      drivers.map(d => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} ({d.department})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+              </div>
+
+              {/* باقي حقول النموذج كما هي */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {isAr ? 'حالة / نوع الاستخدام *' : 'Purpose *'}
+                  </label>
+                  <select
+                    value={formPurpose}
+                    onChange={e => setFormPurpose(e.target.value as any)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  >
+                    <option value="official">{isAr ? 'مهمة عمل رسمية' : 'Official Business'}</option>
+                    <option value="quick_task">⚡ {isAr ? 'استخدام سريع (ساعة أو أقل)' : 'Quick Task (1 hour or less)'}</option>
+                    <option value="client_delivery">{isAr ? 'توصيل عملاء / بضائع' : 'Client / Goods Delivery'}</option>
+                    <option value="maintenance">{isAr ? 'إيصال لورشة الصيانة' : 'To Garage / Maintenance'}</option>
+                    <option value="personal_temporary">{isAr ? 'استخدام شخصي مؤقت' : 'Temporary Personal Use'}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {isAr ? 'تفاصيل المهمة / الوجهة' : 'Details / Destination'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formPurposeCustom}
+                    onChange={e => setFormPurposeCustom(e.target.value)}
+                    placeholder={isAr ? 'مثال: توصيل مستندات للمطار / زيارة فرع...' : 'e.g. Airport drop-off / Branch visit...'}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {isAr ? 'تاريخ ووقت الاستلام' : 'Checkout Time'}
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={formCheckoutTime}
+                    onChange={e => setFormCheckoutTime(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {isAr ? 'عداد الكيلومترات عند الخروج' : 'Checkout Odometer (km)'}
+                  </label>
+                  <input
+                    type="number"
+                    value={formOdometer}
+                    onChange={e => setFormOdometer(Number(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {isAr ? 'مستوى الوقود الحالي' : 'Fuel Level'}
+                  </label>
+                  <select
+                    value={formFuelLevel}
+                    onChange={e => setFormFuelLevel(e.target.value as any)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  >
+                    <option value="100%">100% - Full Tank</option>
+                    <option value="75%">75% - Three Quarters</option>
+                    <option value="50%">50% - Half Tank</option>
+                    <option value="25%">25% - Quarter Tank</option>
+                    <option value="10%">10% - Very Low</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="border border-emerald-500/30 rounded-xl bg-slate-50 dark:bg-slate-900/60 p-4 space-y-3">
+                <div 
+                  className="flex items-center justify-between cursor-pointer select-none"
+                  onClick={() => setShowChecklist(!showChecklist)}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-lg shrink-0">
+                      <ListChecks className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                        {isAr ? 'قائمة فحص السلامة والمعدات قبل الاستلام (اختياري)' : 'Safety & Equipment Checklist (Optional)'}
+                        <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                          {Object.values(formChecklist).filter(Boolean).length} / 6 {isAr ? 'بنود مؤكدة' : 'confirmed'}
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {isAr ? 'تأكيد خلو المركبة من الخدوش وتوفر معدات الطوارئ' : 'Confirm vehicle condition and presence of emergency equipment.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFormChecklist({
+                          noScratches: true,
+                          spareTire: true,
+                          fireExtinguisher: true,
+                          warningTriangle: true,
+                          registrationDoc: true,
+                          cleanliness: true
+                        });
+                      }}
+                      className="px-2.5 py-1 bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-600 dark:text-emerald-400 font-bold text-[11px] rounded-lg transition border border-emerald-500/20"
+                    >
+                      {isAr ? 'تحديد الكل كسليم ✓' : 'Check All ✓'}
+                    </button>
+                  </div>
+                </div>
+
+                {showChecklist && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-200 dark:border-slate-800">
+                    <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={!!formChecklist.noScratches}
+                        onChange={(e) => setFormChecklist(prev => ({ ...prev, noScratches: e.target.checked }))}
+                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'خلو الهيكل الخارجي من الخدوش والصدمات' : 'No external scratches or dents'}</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={!!formChecklist.spareTire}
+                        onChange={(e) => setFormChecklist(prev => ({ ...prev, spareTire: e.target.checked }))}
+                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'وجود الإطار الاحتياطي ورافعة العجلات' : 'Spare tire and jack present'}</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={!!formChecklist.fireExtinguisher}
+                        onChange={(e) => setFormChecklist(prev => ({ ...prev, fireExtinguisher: e.target.checked }))}
+                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'طفاية الحريق وجاهزيتها' : 'Fire extinguisher present'}</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={!!formChecklist.warningTriangle}
+                        onChange={(e) => setFormChecklist(prev => ({ ...prev, warningTriangle: e.target.checked }))}
+                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'مثلث السلامة وحقيبة الإسعافات الأوّلية' : 'Warning triangle and first aid kit'}</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={!!formChecklist.registrationDoc}
+                        onChange={(e) => setFormChecklist(prev => ({ ...prev, registrationDoc: e.target.checked }))}
+                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'وجود رخصة سير المركبة (الاستمارة)' : 'Registration card present'}</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg cursor-pointer hover:border-emerald-500 transition text-xs font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={!!formChecklist.cleanliness}
+                        onChange={(e) => setFormChecklist(prev => ({ ...prev, cleanliness: e.target.checked }))}
+                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      <span className="text-slate-800 dark:text-slate-200">{isAr ? 'نظافة هيكل السيارة والمقصورة الداخلية' : 'Clean interior and exterior'}</span>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t pt-4 border-slate-100 dark:border-slate-700">
+                <SignatureCanvas
+                  label={isAr ? 'توقيع الموظف المستلم (وقع الإصبع أو الماوس في الصندوق)' : 'Driver Signature (Sign with mouse or finger)'}
+                  onSave={dataUrl => setFormSignature(dataUrl)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {isAr ? 'ملاحظات أو خدوش مسبقة بالسيارة' : 'Notes / Pre-existing damage'}
+                </label>
+                <input
+                  type="text"
+                  value={formNotes}
+                  onChange={e => setFormNotes(e.target.value)}
+                  placeholder={isAr ? 'ملاحظات حول النظافة أو حالة المركبة عند الاستلام' : 'Notes about vehicle condition...'}
+                  className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                />
+              </div>
+
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
@@ -516,7 +734,7 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
         </div>
       )}
 
-      {/* RETURN MODAL (مختصر) */}
+      {/* RETURN MODAL */}
       {selectedReturnSession && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 dark:border-slate-700 space-y-4">
@@ -529,7 +747,81 @@ export const CheckoutHub: React.FC<CheckoutHubProps> = ({
             </div>
 
             <form onSubmit={handleSubmitReturn} className="space-y-4">
-              {/* ... نموذج الإعادة كما هو ... */}
+              <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-xl text-xs space-y-1">
+                <p className="font-bold text-slate-800 dark:text-slate-200">
+                  {isAr ? 'سيارة:' : 'Vehicle:'} {vehicles.find(v => v.id === selectedReturnSession.vehicleId)?.make}{' '}
+                  ({vehicles.find(v => v.id === selectedReturnSession.vehicleId)?.plateNumber})
+                </p>
+                <p className="text-slate-500">
+                  {isAr ? 'عداد الاستلام عند الخروج:' : 'Checkout Odometer:'} {(selectedReturnSession.checkoutOdometer ?? 0).toLocaleString()} km
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {isAr ? 'وقت الإعادة والتسليم' : 'Return Time'}
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={returnTime}
+                    onChange={e => setReturnTime(e.target.value)}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    {isAr ? 'عداد الكيلومترات الحالي' : 'Return Odometer (km)'}
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min={selectedReturnSession.checkoutOdometer || 0}
+                    value={returnOdometer}
+                    onChange={e => setReturnOdometer(Number(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {isAr ? 'مستوى البنزين عند العودة' : 'Fuel Level at Return'}
+                </label>
+                <select
+                  value={returnFuelLevel}
+                  onChange={e => setReturnFuelLevel(e.target.value as any)}
+                  className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                >
+                  <option value="100%">100% - Full Tank</option>
+                  <option value="75%">75% - Three Quarters</option>
+                  <option value="50%">50% - Half Tank</option>
+                  <option value="25%">25% - Quarter Tank</option>
+                  <option value="10%">10% - Very Low</option>
+                </select>
+              </div>
+
+              <div className="border-t pt-3 border-slate-100 dark:border-slate-700">
+                <SignatureCanvas
+                  label={isAr ? 'توقيع مسلّم السيارة عند العودة والعودة للعهدة' : 'Return Signature'}
+                  onSave={dataUrl => setReturnSignature(dataUrl)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  {isAr ? 'ملاحظات الإعادة وحالة السيارة' : 'Return Notes'}
+                </label>
+                <input
+                  type="text"
+                  value={returnNotes}
+                  onChange={e => setReturnNotes(e.target.value)}
+                  placeholder={isAr ? 'تم فحص النظافة والسلامة وسليمة...' : 'Vehicle condition notes...'}
+                  className="w-full px-3 py-2 border rounded-lg text-sm bg-slate-50 dark:bg-slate-900 border-slate-300 dark:border-slate-700"
+                />
+              </div>
+
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"

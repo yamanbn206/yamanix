@@ -16,6 +16,7 @@ import { storage } from './lib/storage';
 import { supabase } from './lib/supabase';
 import { Language, t } from './lib/i18n';
 
+// Components
 import { DashboardView } from './components/DashboardView';
 import { VehiclesView } from './components/VehiclesView';
 import { DriversView } from './components/DriversView';
@@ -42,22 +43,26 @@ import {
 const DEFAULT_LOGO_URL = '/yamanix-logo.png';
 
 export default function App() {
+  // ===== اللغة =====
   const [lang, setLang] = useState<Language>(() => {
     const saved = localStorage.getItem('fleet_language') as Language;
     return saved || 'en';
   });
   const isAr = lang === 'ar';
 
+  // ===== التنقل =====
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [notificationDrawerOpen, setNotificationDrawerOpen] = useState<boolean>(false);
   const toastRef = React.useRef<ToastRefHandler>(null);
 
+  // ===== المصادقة =====
   const [session, setSession] = useState<any>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // ===== بيانات التطبيق =====
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompanyId, setActiveCompanyIdState] = useState<string | null>(() => {
     const saved = localStorage.getItem('fleet_active_company');
@@ -74,15 +79,20 @@ export default function App() {
   const [documents, setDocuments] = useState<CompanyDocument[]>([]);
   const [receiptSession, setReceiptSession] = useState<CheckoutSession | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // ==================== HOOKS ====================
+  // ============================================================
+  // جميع الـ Hooks في الأعلى
+  // ============================================================
 
+  // 1. حفظ اللغة
   useEffect(() => {
     localStorage.setItem('fleet_language', lang);
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
   }, [lang]);
 
+  // 2. جلسة المستخدم
   useEffect(() => {
     const getSession = async () => {
       try {
@@ -133,6 +143,7 @@ export default function App() {
     return () => listener?.subscription.unsubscribe();
   }, []);
 
+  // 3. حفظ بيانات المستخدم
   useEffect(() => {
     if (session?.user) {
       localStorage.setItem('fleet_user_id', session.user.id);
@@ -140,14 +151,28 @@ export default function App() {
     }
   }, [session]);
 
-  // تحميل البيانات مع معالجة الأخطاء
+  // 4. تحميل البيانات مع معالجة الأخطاء وضمان إنهاء التحميل
   useEffect(() => {
-    if (!session) return;
+    if (!session) {
+      setIsDataLoading(false);
+      return;
+    }
 
     const loadData = async () => {
       try {
         setIsDataLoading(true);
-        const [companiesData, vehiclesData, driversData, garagesData, maintenanceData, fuelData, expensesData, checkoutsData, documentsData] = await Promise.all([
+        setLoadError(null);
+        const [
+          companiesData,
+          vehiclesData,
+          driversData,
+          garagesData,
+          maintenanceData,
+          fuelData,
+          expensesData,
+          checkoutsData,
+          documentsData
+        ] = await Promise.all([
           storage.getCompanies(),
           storage.getVehicles(),
           storage.getDrivers(),
@@ -159,38 +184,40 @@ export default function App() {
           storage.getDocuments()
         ]);
 
-        setCompanies(Array.isArray(companiesData) ? companiesData : []);
-        setVehicles(Array.isArray(vehiclesData) ? vehiclesData : []);
-        setDrivers(Array.isArray(driversData) ? driversData : []);
-        setGarages(Array.isArray(garagesData) ? garagesData : []);
-        setMaintenance(Array.isArray(maintenanceData) ? maintenanceData : []);
-        setFuel(Array.isArray(fuelData) ? fuelData : []);
-        setExpenses(Array.isArray(expensesData) ? expensesData : []);
-        setCheckouts(Array.isArray(checkoutsData) ? checkoutsData : []);
-        setDocuments(Array.isArray(documentsData) ? documentsData : []);
-        setIsDataLoading(false);
+        setCompanies(companiesData || []);
+        setVehicles(vehiclesData || []);
+        setDrivers(driversData || []);
+        setGarages(garagesData || []);
+        setMaintenance(maintenanceData || []);
+        setFuel(fuelData || []);
+        setExpenses(expensesData || []);
+        setCheckouts(checkoutsData || []);
+        setDocuments(documentsData || []);
       } catch (error) {
-        console.error('Failed to load data from Supabase:', error);
-        // استخدام localStorage كحل احتياطي
+        console.error('❌ Failed to load data:', error);
+        setLoadError(isAr ? 'فشل تحميل البيانات، يرجى تحديث الصفحة' : 'Failed to load data, please refresh');
+        // في حالة الفشل، نحاول استخدام localStorage كنسخة احتياطية
         try {
           const localVehicles = JSON.parse(localStorage.getItem('fleet_app_vehicles_v1') || '[]');
           const localDrivers = JSON.parse(localStorage.getItem('fleet_app_drivers_v1') || '[]');
           const localMaintenance = JSON.parse(localStorage.getItem('fleet_app_maintenance_v1') || '[]');
           const localCheckouts = JSON.parse(localStorage.getItem('fleet_app_checkouts_v1') || '[]');
-          if (localVehicles.length > 0) setVehicles(localVehicles);
-          if (localDrivers.length > 0) setDrivers(localDrivers);
-          if (localMaintenance.length > 0) setMaintenance(localMaintenance);
-          if (localCheckouts.length > 0) setCheckouts(localCheckouts);
+          if (localVehicles.length) setVehicles(localVehicles);
+          if (localDrivers.length) setDrivers(localDrivers);
+          if (localMaintenance.length) setMaintenance(localMaintenance);
+          if (localCheckouts.length) setCheckouts(localCheckouts);
         } catch (e) {
           console.error('Failed to load from localStorage fallback:', e);
         }
+      } finally {
         setIsDataLoading(false);
       }
     };
-    loadData();
-  }, [session]);
 
-  // تعيين الشركة الافتراضية
+    loadData();
+  }, [session, isAr]);
+
+  // 5. تعيين الشركة الافتراضية
   useEffect(() => {
     if (companies.length > 0 && !activeCompanyId) {
       const firstId = companies[0].id;
@@ -199,7 +226,7 @@ export default function App() {
     }
   }, [companies, activeCompanyId]);
 
-  // Realtime
+  // 6. استماع Realtime لتحديث checkout_sessions
   useEffect(() => {
     if (!session) return;
     const channel = supabase
@@ -223,8 +250,9 @@ export default function App() {
     };
   }, [session]);
 
-  // ==================== FUNCTIONS ====================
-
+  // ============================================================
+  // دوال الشركات
+  // ============================================================
   const handleSelectCompany = (id: string) => {
     setActiveCompanyIdState(id);
     storage.setActiveCompanyId(id);
@@ -264,6 +292,9 @@ export default function App() {
     }
   };
 
+  // ============================================================
+  // إعدادات الشركة الحالية
+  // ============================================================
   const currentCompanySettings = useMemo<CompanySettings>(() => {
     if (!activeCompanyId) {
       return {
@@ -298,7 +329,9 @@ export default function App() {
     return settings;
   }, [activeCompanyId, companies, settings, lang]);
 
-  // التصفية
+  // ============================================================
+  // تصفية البيانات (لشركة واحدة فقط)
+  // ============================================================
   const filteredVehicles = useMemo(() => {
     if (!Array.isArray(vehicles) || !activeCompanyId) return [];
     return vehicles.filter(v => (v.companyId || 'comp-1') === activeCompanyId);
@@ -339,21 +372,24 @@ export default function App() {
     return documents.filter(doc => (doc.companyId || 'comp-1') === activeCompanyId);
   }, [documents, activeCompanyId]);
 
+  // ============================================================
+  // التنبيهات
+  // ============================================================
   const activeAlertsCount = React.useMemo(() => {
     let count = 0;
     const today = new Date();
-    today.setHours(0,0,0,0);
+    today.setHours(0, 0, 0, 0);
     if (Array.isArray(filteredVehicles)) {
       filteredVehicles.forEach(v => {
         if (v.licenseExpiryDate) {
           const d = new Date(v.licenseExpiryDate);
-          d.setHours(0,0,0,0);
+          d.setHours(0, 0, 0, 0);
           const days = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           if (days <= 30) count++;
         }
         if (v.insuranceExpiryDate) {
           const d = new Date(v.insuranceExpiryDate);
-          d.setHours(0,0,0,0);
+          d.setHours(0, 0, 0, 0);
           const days = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           if (days <= 30) count++;
         }
@@ -364,7 +400,7 @@ export default function App() {
       filteredDrivers.forEach(d => {
         if (d.licenseExpiryDate) {
           const date = new Date(d.licenseExpiryDate);
-          date.setHours(0,0,0,0);
+          date.setHours(0, 0, 0, 0);
           const days = Math.ceil((date.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
           if (days <= 30) count++;
         }
@@ -373,6 +409,9 @@ export default function App() {
     return count;
   }, [filteredVehicles, filteredDrivers]);
 
+  // ============================================================
+  // دوال الصلاحيات والحفظ
+  // ============================================================
   const getCurrentUserId = () => session?.user?.id;
 
   const hasPermission = (module: string, action: string = 'view') => {
@@ -398,8 +437,7 @@ export default function App() {
     }
   };
 
-  // ==================== HANDLERS ====================
-
+  // ===== VEHICLES =====
   const handleSaveVehicle = async (v: Vehicle) => {
     if (!hasPermission('vehicles', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة سيارات' : 'You do not have permission to add vehicles');
@@ -442,6 +480,7 @@ export default function App() {
     }
   };
 
+  // ===== DRIVERS =====
   const handleSaveDriver = async (d: Driver) => {
     if (!hasPermission('drivers', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة سائقين' : 'You do not have permission to add drivers');
@@ -484,6 +523,7 @@ export default function App() {
     }
   };
 
+  // ===== MAINTENANCE =====
   const handleSaveMaintenance = async (record: MaintenanceRecord) => {
     if (!hasPermission('maintenance', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة سجلات صيانة' : 'You do not have permission to add maintenance records');
@@ -519,6 +559,7 @@ export default function App() {
     }
   };
 
+  // ===== GARAGES =====
   const handleSaveGarage = async (g: Garage) => {
     if (!hasPermission('maintenance', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة كراجات' : 'You do not have permission to add garages');
@@ -554,6 +595,7 @@ export default function App() {
     }
   };
 
+  // ===== FUEL =====
   const handleSaveFuel = async (f: FuelRecord) => {
     if (!hasPermission('fuel', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة سجلات وقود' : 'You do not have permission to add fuel records');
@@ -589,6 +631,7 @@ export default function App() {
     }
   };
 
+  // ===== EXPENSES =====
   const handleSaveExpense = async (e: ExpenseRecord) => {
     if (!hasPermission('fuel', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة مصاريف' : 'You do not have permission to add expenses');
@@ -624,6 +667,7 @@ export default function App() {
     }
   };
 
+  // ===== CHECKOUT =====
   const handleSaveCheckout = async (session: CheckoutSession) => {
     if (!hasPermission('checkout', 'add')) {
       showError(isAr ? 'ليس لديك صلاحية لإضافة جلسات استلام' : 'You do not have permission to add checkout sessions');
@@ -679,6 +723,7 @@ export default function App() {
     }
   };
 
+  // ===== SETTINGS & DOCUMENTS =====
   const handleSaveSettings = (newSettings: CompanySettings) => {
     setSettings(newSettings);
     storage.saveSettings(newSettings);
@@ -755,6 +800,9 @@ export default function App() {
     localStorage.removeItem('fleet_user_email');
   };
 
+  // ============================================================
+  // قائمة التبويبات
+  // ============================================================
   const navItems = [
     { id: 'dashboard', label: t('dashboard', lang), icon: LayoutDashboard, module: 'vehicles' },
     { id: 'vehicles', label: t('fleetVehicles', lang), icon: Car, module: 'vehicles' },
@@ -770,10 +818,32 @@ export default function App() {
     { id: 'audit', label: isAr ? 'سجل العمليات' : 'Audit Log', icon: History, module: 'users' },
   ];
 
-  // ==================== RENDER ====================
-
+  // ============================================================
+  // التحقق من حالة التحميل
+  // ============================================================
   if (loading || isDataLoading) {
     return <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">{t('loading', lang)}</div>;
+  }
+
+  // إذا كان هناك خطأ في التحميل، عرض رسالة خطأ مع زر إعادة المحاولة
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100 dark:bg-[#0a0b0d]">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 shadow-xl text-center max-w-md">
+          <Shield className="w-16 h-16 mx-auto text-red-500 mb-4" />
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">
+            {isAr ? 'حدث خطأ' : 'Error'}
+          </h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">{loadError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+          >
+            {isAr ? 'إعادة المحاولة' : 'Retry'}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (!session) {
@@ -818,6 +888,9 @@ export default function App() {
     return null;
   }
 
+  // ============================================================
+  // التصيير الرئيسي
+  // ============================================================
   const currentNavItem = navItems.find(item => item.id === activeTab);
   const isAllowed = currentNavItem ? hasPermission(currentNavItem.module, 'view') : false;
 
